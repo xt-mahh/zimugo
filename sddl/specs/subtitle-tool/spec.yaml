@@ -1,0 +1,260 @@
+meta:
+  id: "localsub"
+  version: "0.1.0"
+  domain: "subtitle-tool"
+  status: "frozen"
+  dependencies: []
+
+non_goals:
+  - "字幕烧录/渲染（用户在剪映等专业剪辑软件完成，按作者本人工作流约定）"
+  - "移动端原生 App（第二步调研项，不进入本项目范围）"
+  - "OpenCut 插件形态（重写版插件 API 未稳定，不进入本项目范围）"
+  - "付费功能/账号系统/云端转写服务"
+  - "多语言界面与多语言识别（首版仅中文识别）"
+  - "批量处理、字幕样式预览、LLM 同音字纠错（could 级，非首版目标）"
+
+decision_points:
+  - id: "DP-001"
+    topic: "转写引擎选型"
+    default: "whisper（Transformers.js，WebGPU+WASM 双后端）"
+    alternatives: ["FunASR/Paraformer（中文 SOTA，wasm 端部署待验证）", "双引擎可选"]
+    rationale: "Phase 0 用 kindness-loop CH2 真实成片实测中文准确率/时间轴/RTF 后决胜；whisper 生态成熟风险低，FunASR 中文更强但浏览器端链路未验证"
+    category: "implementation"
+    requires_confirmation: true
+    status: "confirmed"
+  - id: "DP-002"
+    topic: "字幕分行规则（每条字数上限）"
+    default: "每条 ≤ 10 字，jieba 切词不切断词语；UI 提供字数阈值调节控件（默认 10，可调）"
+    alternatives: ["每条 ≤ 15 字", "不限制，按 whisper 原始分段"]
+    rationale: "作者本人短视频工作流偏好（已用于三虫君视频）；面向大众用户，默认 10 字并提供 UI 控件自行调节"
+    category: "behavior"
+    requires_confirmation: true
+    status: "modified"
+  - id: "DP-003"
+    topic: "超长视频阈值与分段策略"
+    default: "> 15 分钟提示预计耗时，按 5 分钟音频段分块转写"
+    alternatives: ["阈值 30 分钟", "阈值 60 分钟"]
+    rationale: "防内存溢出 + 进度可感知；保守内存保护，具体分块数值 Phase 0/1 实测定"
+    category: "constraint"
+    requires_confirmation: true
+    status: "modified"
+  - id: "DP-004"
+    topic: "浏览器最低兼容线"
+    default: "Chrome/Edge ≥ 120（WebGPU 按需启用），Safari/Firefox 走 WASM"
+    alternatives: ["Chrome ≥ 100（覆盖更广但 WebGPU 覆盖率低）"]
+    rationale: "WebGPU 稳定版 Chrome 113+；120 起覆盖率与稳定性平衡"
+    category: "constraint"
+    requires_confirmation: true
+    status: "confirmed"
+  - id: "DP-005"
+    topic: "前端技术栈"
+    default: "vanilla JS + Vite，零运行时依赖"
+    alternatives: ["React/Vue + Vite", "Svelte"]
+    rationale: "单页工具交互面小，零依赖最符合开源轻量定位；模型侧由 Transformers.js 承担"
+    category: "implementation"
+    requires_confirmation: false
+    status: "delegated"
+
+interfaces:
+  - name: "transcribe"
+    signature:
+      params:
+        - { name: "mediaFile", type: "MediaFile", required: true }
+        - { name: "options", type: "TranscribeOptions", required: false }
+      returns: { type: "TranscribeResult" }
+    errors: ["NO_AUDIO_TRACK", "ENGINE_INIT_FAILED", "TRANSCRIBE_ABORTED"]
+  - name: "editSubtitle"
+    signature:
+      params:
+        - { name: "cues", type: "array<Cue>", required: true }
+        - { name: "cueId", type: "string", required: true }
+        - { name: "patch", type: "CuePatch", required: true }
+      returns: { type: "Cue" }
+    errors: ["CUE_NOT_FOUND", "INVALID_TIME_RANGE"]
+  - name: "exportSrt"
+    signature:
+      params:
+        - { name: "cues", type: "array<Cue>", required: true }
+      returns: { type: "SrtFile" }
+    errors: ["EMPTY_CUES"]
+  - name: "loadEngine"
+    signature:
+      params:
+        - { name: "backend", type: "string", required: false }
+      returns: { type: "EngineInfo" }
+    errors: ["BACKEND_UNAVAILABLE", "MODEL_DOWNLOAD_FAILED"]
+
+data_models:
+  - name: "MediaFile"
+    schema:
+      type: "object"
+      description: "浏览器 File 对象包装：视频（mp4/mov 等）或纯音频（mp3/m4a/wav）"
+      properties:
+        name: { type: "string" }
+        sizeBytes: { type: "number" }
+        kind: { type: "string", enum: ["video", "audio"] }
+      required: ["name", "kind"]
+  - name: "CuePatch"
+    schema:
+      type: "object"
+      properties:
+        text: { type: "string" }
+        start: { type: "number" }
+        end: { type: "number" }
+      required: []
+  - name: "SrtFile"
+    schema:
+      type: "object"
+      description: "UTF-8 无 BOM 的 SRT 文本 blob"
+      properties:
+        content: { type: "string" }
+        cueCount: { type: "number" }
+      required: ["content", "cueCount"]
+  - name: "EngineInfo"
+    schema:
+      type: "object"
+      properties:
+        backend: { type: "string", enum: ["webgpu", "wasm"] }
+        modelId: { type: "string" }
+      required: ["backend", "modelId"]
+  - name: "Cue"
+    schema:
+      type: "object"
+      properties:
+        id: { type: "string" }
+        start: { type: "number", description: "秒" }
+        end: { type: "number", description: "秒" }
+        text: { type: "string" }
+        status: { type: "string", enum: ["draft", "edited", "final"] }
+      required: ["id", "start", "end", "text"]
+  - name: "TranscribeResult"
+    schema:
+      type: "object"
+      properties:
+        cues: { type: "array", items: { type: "Cue" } }
+        engine: { type: "string" }
+        backend: { type: "string", enum: ["webgpu", "wasm"] }
+        elapsedMs: { type: "number" }
+        audioDurationSec: { type: "number" }
+      required: ["cues", "engine", "backend"]
+  - name: "TranscribeOptions"
+    schema:
+      type: "object"
+      properties:
+        language: { type: "string", default: "zh" }
+        maxCharsPerCue: { type: "number" }
+        chunkSec: { type: "number" }
+      required: []
+
+behaviors:
+  - id: "B001"
+    interface: "transcribe"
+    priority: "must"
+    scenario: "主流程：导入媒体完成本地转写"
+    given: "引擎已加载且模型已缓存"
+    when: "用户导入含人声的视频或音频文件"
+    then:
+      - "浏览器内抽取音轨并重采样为 16kHz 单声道 PCM（采样率 = 16000Hz）"
+      - "本地转写返回 TranscribeResult，cues 数组非空且每条包含 id/start/end/text 字段"
+      - "转写过程中 UI 显示进度百分比，取值范围 0 <= progress <= 100，并显示预计剩余时间"
+      - "结束后 cues 按 start 升序排列且相邻 cue 满足 end[i] <= start[i+1]"
+    acceptance: true
+  - id: "B002"
+    interface: "transcribe"
+    priority: "must"
+    scenario: "异常：无音轨或无人声"
+    given: "导入的媒体无音轨，或全片经 VAD 判定与人声特征不匹配（无人声）"
+    when: "调用 transcribe(mediaFile)"
+    then:
+      - "返回 NO_AUDIO_TRACK：界面提示『未检测到人声』"
+      - "无音轨时抛出 NO_AUDIO_TRACK，不产出空 SRT 文件"
+    acceptance: true
+  - id: "B003"
+    interface: "transcribe"
+    priority: "should"
+    scenario: "异常：转写中断"
+    given: "转写进行中且已产出部分分段结果"
+    when: "用户主动取消或页面转写异常"
+    then:
+      - "抛出 TRANSCRIBE_ABORTED"
+      - "保留已完成的分段 Cue，状态标记 draft"
+      - "提供『从断点继续』与『全部重来』两个入口，页面返回保留的 draft 状态 Cue 列表"
+    acceptance: true
+  - id: "B004"
+    interface: "loadEngine"
+    priority: "must"
+    scenario: "引擎后端选择与降级"
+    given: "浏览器环境未知"
+    when: "初始化引擎"
+    then:
+      - "优先尝试 WebGPU；不可用则自动回退 WASM 并在 UI 明示当前后端；两个后端均不可用时抛出 BACKEND_UNAVAILABLE"
+      - "后端初始化失败时抛出 ENGINE_INIT_FAILED"
+      - "模型首次下载失败时抛出 MODEL_DOWNLOAD_FAILED，并给出重试入口"
+      - "模型首次下载后写入浏览器缓存，断网状态下引擎加载返回 EngineInfo（离线可复现实测）"
+    acceptance: true
+  - id: "B005"
+    interface: "editSubtitle"
+    priority: "must"
+    scenario: "字幕校对编辑"
+    given: "转写完成，cues 列表非空"
+    when: "用户修改某条字幕文本或微调起止时间"
+    then:
+      - "cueId 不存在时抛出 CUE_NOT_FOUND"
+      - "patch 应用后返回更新后的 Cue，status 变为 edited"
+      - "时间轴校验：start < end，且与相邻 cue 无非法重叠（重叠即抛出 INVALID_TIME_RANGE）"
+      - "文本改动后字幕列表对应行内容变为新文本（DOM 文本 = patch.text）"
+    acceptance: true
+  - id: "B006"
+    interface: "exportSrt"
+    priority: "must"
+    scenario: "导出 SRT"
+    given: "cues 列表非空"
+    when: "用户点击导出"
+    then:
+      - "生成标准 SRT 文本：序号 + HH:MM:SS,mmm --> HH:MM:SS,mmm + 文本 + 空行"
+      - "文件以 UTF-8 无 BOM 编码输出，cueCount = cues 记录数"
+      - "cues 为空时抛出 EMPTY_CUES，不生成文件"
+    acceptance: true
+
+boundaries:
+  - condition: "媒体时长 > DP-003 阈值"
+    expectation: "提示预计耗时并分块处理，浏览器内存不超限、页面不崩溃"
+    priority: "must"
+  - condition: "文件大小 > 2GB"
+    expectation: "导入前拦截并提示浏览器内存上限，不尝试加载"
+    priority: "should"
+  - condition: "断网（模型已缓存）"
+    expectation: "全功能可用，无网络请求依赖"
+    priority: "must"
+  - condition: "非 Chrome/Edge 120+ 浏览器"
+    expectation: "显示不兼容提示与建议浏览器列表，不进入主流程"
+    priority: "should"
+
+quality_constraints:
+  performance:
+    - metric: "RTF（转写耗时/音频时长）"
+      threshold: "< 1.0"
+      scope: "whisper-base/small @ WebGPU，笔记本 4060 级"
+      verification: "env"
+      priority: "must"
+    - metric: "中文字符准确率（对标剪映主观对比）"
+      threshold: ">= 90%"
+      scope: "真实口语视频（kindness-loop CH2 测试集）"
+      verification: "env"
+      priority: "must"
+    - metric: "时间轴偏差"
+      threshold: "<= 0.3s"
+      scope: "句级起止时间"
+      verification: "env"
+      priority: "must"
+    - metric: "首屏交互到可导入"
+      threshold: "<= 3s（模型已缓存时）"
+      scope: "桌面 Chrome"
+      verification: "env"
+      priority: "should"
+  security:
+    - metric: "音频数据出域"
+      threshold: "0 次网络上传"
+      scope: "整个转写流程"
+      verification: "design"
+      priority: "must"

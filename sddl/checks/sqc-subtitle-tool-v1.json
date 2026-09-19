@@ -1,0 +1,40 @@
+{
+  "spec_version": "0.1.0",
+  "def": {
+    "schema": {
+      "pass": true,
+      "issues": []
+    },
+    "refs": {
+      "pass": true,
+      "issues": []
+    },
+    "assertability": {
+      "pass": true,
+      "warnings": []
+    },
+    "dp": {
+      "pass": true,
+      "issues": []
+    }
+  },
+  "sem": {
+    "coverage": {
+      "has_happy_path": true,
+      "has_error_path": true,
+      "has_boundary": true,
+      "pass": true
+    },
+    "contradiction": {
+      "pass": true,
+      "conflicts": []
+    },
+    "testability": {
+      "pass": true,
+      "unmeasurable": []
+    }
+  },
+  "blockers": [],
+  "warnings": [],
+  "verdict": "pass"
+}

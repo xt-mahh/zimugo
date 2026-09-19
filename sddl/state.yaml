@@ -1,0 +1,4 @@
+spec_status: frozen
+current_phase: derivation
+budget: { formation: 35%, implementation: 12%, revision: 100% }
+last_check: { type: sqc, spec: subtitle-tool-v0.1.0, result: pass, at: 2026-09-19T19:15:00+08:00 }

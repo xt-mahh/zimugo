@@ -1,0 +1,11 @@
+confirmation_record:
+  spec_version: "0.1.0"
+  confirmed_by: "马浩涵"
+  confirmed_at: "2026-09-19T19:10:00+08:00"
+  decisions:
+    - { id: "DP-001", result: "confirmed", value: "默认 whisper，Phase 0 实测后定终" }
+    - { id: "DP-002", result: "modified", value: "默认每条 ≤ 10 字 jieba 切词 + UI 字数阈值调节控件", reason: "用户原话：先按这个来，同时添加一个控件来调节字数阈值" }
+    - { id: "DP-003", result: "modified", value: "> 15 分钟提示预计耗时，5 分钟分块", reason: "用户选择更保守的内存保护" }
+    - { id: "DP-004", result: "confirmed", value: "Chrome/Edge ≥ 120，WebGPU 优先，Safari/Firefox 走 WASM" }
+    - { id: "DP-005", result: "delegated", value: "vanilla JS + Vite（implementation 类授权 AI）" }
+  overall: "approved"
