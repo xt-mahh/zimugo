@@ -3,6 +3,7 @@
 //  - WebGPU 必须 fp16 encoder + q4 decoder（q8 全量化在 WebGPU 上输出乱码）
 //  - WASM 用 q8（CPU 上快且稳）
 //  - Worker 阶梯启动，避免并发首载重复下载模型
+import { ensureModelCached } from './model-cache.js';
 
 export const DTYPES = {
   webgpu: { encoder_model: 'fp16', decoder_model_merged: 'q4' },
@@ -104,23 +105,27 @@ export class TranscribePool {
     const t0 = performance.now();
 
     const allDone = new Promise((resolve, reject) => {
-      // 阶梯启动：W0 先加载写缓存，ready 后再启其余（避免并发重复下载）
-      const w0 = this._newWorker(resolve, reject);
-      const firstReady = new Promise((res, rej) => {
-        w0.addEventListener('message', function once(e) {
-          if (e.data.type === 'ready') { w0.removeEventListener('message', once); res(); }
-          if (e.data.type === 'error') { w0.removeEventListener('message', once); rej(new Error(e.data.message)); }
-        });
-      });
-      this.onProgress({ stage: 'model', frac: 0.15, msg: `Worker 1/${NW} 加载模型（${backend}）…` });
-      w0.postMessage({ type: 'init', modelId, device: backend });
-
+      // 阶梯启动：主线程先统一预取模型到 Cache API（一次网络），Worker 内零重复下载
       (async () => {
+        await ensureModelCached(modelId, (frac, f) => {
+          this.onProgress({ stage: 'model', frac: 0.05 + frac * 0.15, msg: `预取模型 ${f}` });
+        }).catch((e) => reject(e));
+
+        const w0 = this._newWorker(resolve, reject);
+        const firstReady = new Promise((res, rej) => {
+          w0.addEventListener('message', function once(e) {
+            if (e.data.type === 'ready') { w0.removeEventListener('message', once); res(); }
+            if (e.data.type === 'error') { w0.removeEventListener('message', once); rej(new Error(e.data.message)); }
+          });
+        });
+        this.onProgress({ stage: 'model', frac: 0.2, msg: `Worker 1/${NW} 加载模型（${backend}）…` });
+        w0.postMessage({ type: 'init', modelId, device: backend });
+
         await firstReady;
-        this.onProgress({ stage: 'transcribe', frac: 0.2, msg: '开始转写…' });
+        this.onProgress({ stage: 'transcribe', frac: 0.22, msg: '开始转写…' });
         for (let k = 1; k < NW; k++) {
           if (this.aborted) break;
-          this.onProgress({ stage: 'model', frac: 0.2, msg: `Worker ${k + 1}/${NW} 从缓存加载…` });
+          this.onProgress({ stage: 'model', frac: 0.22, msg: `Worker ${k + 1}/${NW} 从缓存加载…` });
           const wk = this._newWorker(resolve, reject);
           wk.postMessage({ type: 'init', modelId, device: backend });
         }

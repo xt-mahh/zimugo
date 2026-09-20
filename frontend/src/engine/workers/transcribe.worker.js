@@ -1,9 +1,12 @@
 // 转写 Worker：独立 ort session，真并行（Phase 0 验证的架构）
 import { pipeline, env } from '@huggingface/transformers';
+import { installCacheInterceptor } from '../model-cache.js';
 
 env.allowRemoteModels = false;
 env.allowLocalModels = true;
 env.localModelPath = '/models/';
+// 根治多 Worker 重复下载：fetch 拦截 → Cache API 直读（见 model-cache.js）
+installCacheInterceptor();
 
 let transcriber = null;
 let loadedKey = '';
