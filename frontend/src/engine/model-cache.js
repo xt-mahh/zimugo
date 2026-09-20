@@ -1,64 +1,56 @@
 // 模型文件缓存（根治多 Worker 重复下载）：
-// transformers.js 本地加载的 cache key 非 http(s) 时不会写入 Cache API（源码 storeCachedResource），
-// 且 vite dev 无强缓存头 → 每个 Worker 重新 fetch 250MB。
-// 方案：统一预取到 Cache API（key = 规范化 URL），Worker init 时确保已缓存。
+// transformers.js 对非 http(s) 本地路径不写 Cache API（源码 storeCachedResource），
+// 且 vite 预打包依赖内的 fetch 引用无法被外层覆盖拦截（HAR 实锤两层尝试均失败）。
+// 正解：官方 env.customCache 接口 —— transformers.js 加载器内部直接读写 Cache API。
+// 同时按 dtype 只预取一套模型，避免双精度 660MB 浪费。
 const CACHE_NAME = 'localsub-models-v1';
 
-/** 模型目录下需要预取的文件（相对 /models/） */
-const MANIFEST = {
-  'onnx-community/whisper-small': [
-    'config.json', 'generation_config.json', 'preprocessor_config.json',
-    'tokenizer.json', 'tokenizer_config.json',
-    'onnx/encoder_model_quantized.onnx', 'onnx/decoder_model_merged_quantized.onnx',
-    'onnx/encoder_model_fp16.onnx', 'onnx/decoder_model_merged_q4.onnx',
-  ],
-  'Xenova/whisper-base': [
-    'config.json', 'generation_config.json', 'preprocessor_config.json',
-    'tokenizer.json', 'tokenizer_config.json',
-    'onnx/encoder_model_quantized.onnx', 'onnx/decoder_model_merged_quantized.onnx',
-    'onnx/encoder_model_fp16.onnx', 'onnx/decoder_model_merged_q4.onnx',
-  ],
+/** 每个 dtype 策略需要的 onnx 文件（相对 onnx/） */
+const ONNX_FILES = {
+  wasm: ['encoder_model_quantized.onnx', 'decoder_model_merged_quantized.onnx'],
+  webgpu: ['encoder_model_fp16.onnx', 'decoder_model_merged_q4.onnx'],
 };
+
+const BASE_FILES = [
+  'config.json', 'generation_config.json', 'preprocessor_config.json',
+  'tokenizer.json', 'tokenizer_config.json',
+];
+
+/** 该模型+后端需要的全部文件（相对 /models/<repo>/） */
+export function filesFor(repo, backend) {
+  const onnx = ONNX_FILES[backend] || ONNX_FILES.wasm;
+  return [...BASE_FILES, ...onnx.map((f) => `onnx/${f}`)];
+}
 
 function fileUrl(repo, file) {
   return new URL(`/models/${repo}/${file}`, self.location.origin).href;
 }
 
-/** 确保 Cache API 里存在该模型全部文件；返回缓存命中的 Cache 实例 */
-export async function ensureModelCached(repo, onProgress) {
+/** transformers.js 官方自定义缓存：match/put 直连 Cache API（Worker 内用） */
+export async function makeCustomCache() {
   const cache = await caches.open(CACHE_NAME);
-  const files = MANIFEST[repo] || [];
+  return {
+    match: (key) => cache.match(key),
+    put: async (key, resp) => {
+      try { await cache.put(key, resp); } catch (e) { /* 存储满等异常不致命 */ }
+    },
+  };
+}
+
+/** 预取当前后端所需的一套模型文件到 Cache API（一次网络，Worker 全命中） */
+export async function ensureModelCached(repo, backend, onProgress) {
+  if (typeof caches === 'undefined') return;
+  const cache = await caches.open(CACHE_NAME);
+  const files = filesFor(repo, backend);
   let done = 0;
   for (const f of files) {
     const url = fileUrl(repo, f);
-    let hit = await cache.match(url);
-    if (!hit) {
+    if (!(await cache.match(url))) {
       const resp = await fetch(url);
-      if (resp.ok) { await cache.put(url, resp.clone()); hit = resp; }
-      else continue; // 可选精度档缺失不致命（如 base 无 fp16）
+      if (resp.ok) await cache.put(url, resp);
+      else continue;
     }
     done++;
     if (onProgress) onProgress(done / files.length, f);
   }
-  return cache;
-}
-
-/**
- * 安装 fetch 拦截（在 Worker 内调用）：transformers.js 请求 /models/... 时
- * 直接响应 Cache API 副本，零网络请求。
- */
-export function installCacheInterceptor() {
-  const origFetch = self.fetch.bind(self);
-  self.fetch = async (input, init) => {
-    const url = typeof input === 'string' ? input : input.url;
-    if (url.includes('/models/')) {
-      const abs = new URL(url, self.location.origin).href;
-      try {
-        const cache = await caches.open(CACHE_NAME);
-        const hit = await cache.match(abs);
-        if (hit) return hit;
-      } catch (e) { /* cache 不可用则回落网络 */ }
-    }
-    return origFetch(input, init);
-  };
 }

@@ -107,7 +107,7 @@ export class TranscribePool {
     const allDone = new Promise((resolve, reject) => {
       // 阶梯启动：主线程先统一预取模型到 Cache API（一次网络），Worker 内零重复下载
       (async () => {
-        await ensureModelCached(modelId, (frac, f) => {
+        await ensureModelCached(modelId, backend, (frac, f) => {
           this.onProgress({ stage: 'model', frac: 0.05 + frac * 0.15, msg: `预取模型 ${f}` });
         }).catch((e) => reject(e));
 
