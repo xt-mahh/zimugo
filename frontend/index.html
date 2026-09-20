@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>localsub · 本地字幕工具</title>
+<style>
+  :root {
+    --bg: #111827; --card: #1f2937; --card2: #273449;
+    --accent: #4f8cff; --ok: #38d39f; --warn: #ff9800; --err: #ff5252;
+    --text: #e5e7eb; --muted: #9ca3af; --border: #374151;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .card { background: var(--card); border-radius: 12px; padding: 18px 22px; margin: 14px 0; }
+  button { padding: 9px 20px; border: none; border-radius: 8px; background: var(--accent); color: #fff; font-size: 14px; cursor: pointer; }
+  button:disabled { background: #4b5563; cursor: not-allowed; }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  button:disabled.ghost { opacity: .4; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  label { font-size: 13px; color: var(--muted); }
+  select, input[type=number] { background: var(--card2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+  .bar { height: 14px; background: #0d1b3e; border-radius: 7px; overflow: hidden; margin: 10px 0 6px; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, #4f8cff, #38d39f); width: 0%; transition: width .25s; }
+  #status { font-size: 13px; color: #9fd3ee; min-height: 18px; }
+  .num { color: #ffd54f; font-weight: 600; }
+  .drop { border: 2px dashed var(--border); border-radius: 12px; padding: 28px; text-align: center; color: var(--muted); transition: border-color .2s; }
+  .drop.on { border-color: var(--accent); color: var(--accent); }
+  table.cues { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.cues th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  table.cues td { padding: 5px 8px; border-bottom: 1px solid #1f2937; vertical-align: middle; }
+  table.cues input[type=text] { width: 100%; background: transparent; border: 1px solid transparent; color: var(--text); padding: 4px 6px; border-radius: 5px; font-size: 13px; }
+  table.cues input[type=text]:focus { outline: none; border-color: var(--accent); background: var(--card2); }
+  table.cues input.suspect { color: var(--muted); font-style: italic; }
+  td.time input { width: 92px; background: transparent; border: 1px solid transparent; color: #9fd3ee; font-size: 12px; font-family: ui-monospace, monospace; padding: 4px; border-radius: 5px; text-align: right; }
+  td.time input:focus { outline: none; border-color: var(--accent); background: var(--card2); }
+  td.time input.err { border-color: var(--err); }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; }
+  .badge.draft { background: #3b4a63; color: #cbd5e1; }
+  .badge.edited { background: #14532d; color: #86efac; }
+  .del { color: var(--err); background: none; border: none; padding: 2px 8px; font-size: 15px; }
+  .result-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 6px; }
+  .result-grid .cell { background: var(--card2); border-radius: 8px; padding: 10px 12px; }
+  .result-grid .k { font-size: 11px; color: var(--muted); }
+  .result-grid .v { font-size: 17px; font-weight: 600; margin-top: 2px; }
+  #err { color: var(--err); font-size: 13px; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .hint { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>localsub</h1>
+  <div class="sub">浏览器本地 AI 字幕 · 音频永不上传 · 导出 SRT · <span id="backendInfo">检测后端中…</span></div>
+
+  <div class="card">
+    <div class="drop" id="drop">拖入视频/音频文件，或
+      <input type="file" id="file" accept="audio/*,video/*" hidden>
+      <button class="ghost" onclick="document.getElementById('file').click()">选择文件</button>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <label>模型 <select id="model">
+        <option value="base">whisper-base（快）</option>
+        <option value="small" selected>whisper-small（准）</option>
+      </select></label>
+      <label>后端 <select id="backendSel">
+        <option value="auto" selected>自动</option>
+        <option value="webgpu">WebGPU</option>
+        <option value="wasm">WASM</option>
+      </select></label>
+      <label>并发 <select id="concurrency">
+        <option>1</option><option>2</option><option selected>3</option><option>4</option>
+      </select></label>
+      <label>VAD <input type="checkbox" id="usevad" checked></label>
+      <label>每条字数 <input type="number" id="maxChars" value="10" min="4" max="40" style="width:56px"></label>
+      <button id="run" disabled>开始转写</button>
+      <button id="cancel" class="ghost" disabled>取消</button>
+    </div>
+    <div class="bar"><div id="prog"></div></div>
+    <div id="status">等待文件…</div>
+    <div id="err"></div>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <div class="result-grid">
+      <div class="cell"><div class="k">耗时</div><div class="v" id="rElapsed">-</div></div>
+      <div class="cell"><div class="k">RTF</div><div class="v" id="rRtf">-</div></div>
+      <div class="cell"><div class="k">后端</div><div class="v" id="rBackend">-</div></div>
+      <div class="cell"><div class="k">字幕条数</div><div class="v" id="rCount">-</div></div>
+    </div>
+  </div>
+
+  <div class="card" id="editorCard" style="display:none">
+    <div class="toolbar">
+      <div class="row">
+        <span class="hint">文本可直接编辑 · 时间格式 秒（如 12.50）· 斜体灰字为疑似 BGM 歌词段</span>
+      </div>
+      <button id="exportBtn">导出 SRT</button>
+    </div>
+    <div style="max-height: 55vh; overflow-y: auto">
+      <table class="cues">
+        <thead><tr><th style="width:36px">#</th><th style="width:110px">开始</th><th style="width:110px">结束</th><th>文本</th><th style="width:64px">状态</th><th style="width:36px"></th></tr></thead>
+        <tbody id="cueBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script type="module" src="/src/app.js"></script>
+</body>
+</html>
