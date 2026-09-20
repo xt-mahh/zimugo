@@ -1,0 +1,11 @@
+{
+  "name": "phase0-quality-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "extract": "ffmpeg -y -i ../../test-media/ch2_final_x264.mp4 -vn -ac 1 -ar 16000 ../../test-media/ch2_16k.wav"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.7.5"
+  }
+}
