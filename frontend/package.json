@@ -18,7 +18,7 @@
     "vitest": "^5.0.1"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.3.0",
-    "onnxruntime-web": "^1.31.0-dev.20260914-8d85527a0"
+    "@huggingface/transformers": "^3.8.1",
+    "onnxruntime-web": "^1.22.0-dev.20250409-89f8206ba4"
   }
 }
