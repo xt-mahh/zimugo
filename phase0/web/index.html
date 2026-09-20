@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>localsub Phase0 - WebGPU 速度实测</title>
+<style>
+  body { font-family: system-ui; max-width: 720px; margin: 40px auto; background: #1a1a2e; color: #eee; padding: 0 16px; }
+  h1 { font-size: 20px; }
+  .card { background: #16213e; border-radius: 10px; padding: 16px 20px; margin: 14px 0; }
+  button { padding: 10px 22px; border: none; border-radius: 8px; background: #4f8cff; color: white; font-size: 15px; cursor: pointer; }
+  button:disabled { background: #555; }
+  #status { margin-top: 10px; font-size: 14px; color: #9fd; white-space: pre-wrap; }
+  .num { color: #ffd54f; font-weight: bold; }
+  input[type=range] { width: 100%; }
+</style>
+</head>
+<body>
+<h1>localsub Phase 0 · 浏览器本地转写实测</h1>
+<div class="card">
+  <div>后端: <span id="backend" class="num">检测中…</span></div>
+  <div>GPU: <span id="gpuinfo">-</span></div>
+</div>
+<div class="card">
+  <p>1️⃣ 选择音频/视频文件（或用下面的 CH2 测试音频）</p>
+  <input type="file" id="file" accept="audio/*,video/*">
+  <p style="margin-top:12px">2️⃣ 模型: <select id="model">
+    <option value="onnx-community/whisper-base">whisper-base (~80MB)</option>
+    <option value="onnx-community/whisper-small" selected>whisper-small (~250MB)</option>
+  </select></p>
+  <p><button id="run" disabled>开始转写</button></p>
+  <div id="status">等待文件…</div>
+</div>
+<div class="card">
+  <h3>结果</h3>
+  <div id="result">-</div>
+</div>
+
+<script type="module">
+import { pipeline, env } from './node_modules/@huggingface/transformers/dist/transformers.min.js';
+env.remoteHost = 'https://hf-mirror.com';   // 国内镜像
+
+const $ = (id) => document.getElementById(id);
+let audioData = null, transcriber = null, currentModel = '';
+
+// 后端检测
+(async () => {
+  let backend = 'wasm';
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    if (adapter) {
+      backend = 'webgpu';
+      $('gpuinfo').textContent = adapter.info?.description || 'WebGPU adapter 可用';
+    }
+  } catch (e) { /* no webgpu */ }
+  $('backend').textContent = backend;
+})();
+
+$('file').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  $('status').textContent = '解码音频…';
+  const ab = await f.arrayBuffer();
+  const ctx = new AudioContext({ sampleRate: 16000 });
+  const decoded = await ctx.decodeAudioData(ab);
+  // 混单声道
+  const ch = decoded.getChannelData(0);
+  audioData = { pcm: ch, dur: decoded.duration, name: f.name };
+  $('status').textContent = `就绪: ${f.name}, 时长 ${decoded.duration.toFixed(1)}s`;
+  $('run').disabled = false;
+});
+
+$('run').addEventListener('click', async () => {
+  if (!audioData) return;
+  $('run').disabled = true;
+  const model = $('model').value;
+  try {
+    if (!transcriber || currentModel !== model) {
+      $('status').textContent = `下载/加载模型 ${model}（首次较慢，会缓存）…`;
+      transcriber = await pipeline('automatic-speech-recognition', model, {
+        dtype: 'q8',
+        device: $('backend').textContent.includes('webgpu') ? 'webgpu' : 'wasm',
+        progress_callback: (p) => {
+          if (p.status === 'progress') $('status').textContent = `下载 ${p.file || ''}: ${(p.progress || 0).toFixed(0)}%`;
+        },
+      });
+      currentModel = model;
+    }
+    $('status').textContent = '转写中…（观察 RTF）';
+    const t0 = performance.now();
+    const out = await transcriber(audioData.pcm, {
+      language: 'chinese', task: 'transcribe', return_timestamps: true,
+      chunk_length_s: 30, stride_length_s: 5,
+    });
+    const el = (performance.now() - t0) / 1000;
+    const rtf = el / audioData.dur;
+    $('result').innerHTML = `
+      <div>⏱ 转写耗时 <span class="num">${el.toFixed(1)}s</span> / 音频 <span class="num">${audioData.dur.toFixed(1)}s</span></div>
+      <div style="font-size:22px;margin:8px 0">RTF = <span class="num">${rtf.toFixed(2)}</span>${rtf < 1 ? ' ✅ 达标(<1)' : ' ⚠️ 未达标'}</div>
+      <div>后端: <span class="num">${$('backend').textContent}</span> · 模型: ${model}</div>
+      <details style="margin-top:10px"><summary>识别文本（前 500 字）</summary><p>${(out.text || '').slice(0, 500)}</p></details>`;
+    $('status').textContent = '完成 ✅';
+  } catch (err) {
+    $('status').textContent = '失败: ' + err.message;
+  } finally {
+    $('run').disabled = false;
+  }
+});
+</script>
+</body>
+</html>
