@@ -28,16 +28,21 @@ export function tokenize(text) {
   return out;
 }
 
-/** 按词切分行长：每条 ≤ maxChars 字，超长行在词边界折行 */
+/** 按词切分行长：每条 ≤ maxChars 字，超长行在词边界折行；短尾（≤2字）合并回上一行 */
 export function wrapByWords(text, maxChars = 10) {
-  const words = tokenize(text);
-  const lines = [];
+  let lines = [];
   let cur = '';
-  for (const w of words) {
+  for (const w of tokenize(text)) {
     if (cur.length + w.length > maxChars && cur.length > 0) { lines.push(cur); cur = w; }
     else cur += w;
   }
   if (cur) lines.push(cur);
+  // 短尾合并：末行 1-2 字并入上一行（若不超上限+2 容差），如「…亮着」+「的」→「…亮着的」
+  while (lines.length >= 2 && lines[lines.length - 1].length <= 2
+         && lines[lines.length - 2].length + lines[lines.length - 1].length <= maxChars + 2) {
+    const tail = lines.pop();
+    lines[lines.length - 1] += tail;
+  }
   return lines;
 }
 
