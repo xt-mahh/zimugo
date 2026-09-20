@@ -52,6 +52,12 @@ export class TranscribePool {
         this._dispatch(w, resolve);
       } else if (m.type === 'result') {
         this.results[m.jobId] = m.chunks;
+        this._doneCount = (this._doneCount || 0) + 1;
+        this.onProgress({
+          stage: 'transcribe',
+          frac: 0.2 + 0.8 * (this._doneCount / Math.max(this.jobs.length, 1)),
+          msg: `转写中 ${this._doneCount}/${this.jobs.length} 段`,
+        });
         this._dispatch(w, resolve);
       } else if (m.type === 'progress') {
         this.onProgress(m);
@@ -73,7 +79,18 @@ export class TranscribePool {
   }
 
   _maybeDone(resolve) {
-    if (this.workers.every((w) => w.terminated)) resolve();
+    if (this._done) return;
+    if (this.workers.every((w) => w.terminated)) { this._done = true; resolve(); }
+  }
+
+  _newWorker(resolve, reject) {
+    const w = new Worker(new URL('./workers/transcribe.worker.js', import.meta.url), { type: 'module' });
+    const rec = { worker: w, terminated: false };
+    const origTerm = w.terminate.bind(w);
+    w.terminate = () => { rec.terminated = true; origTerm(); };
+    this.workers.push(rec);
+    this._attach(w, this.workers.length, resolve, reject);
+    return w;
   }
 
   async run(pcm, segs, durationSec) {
@@ -81,35 +98,30 @@ export class TranscribePool {
     this.pcm = pcm;
     this.jobs = segs.filter(([ss, se]) => (se - ss) * 16000 >= 8000);
     this.results = new Array(this.jobs.length);
+    this.workers = [];
+    this._done = false;
     const NW = Math.min(concurrency, this.jobs.length);
     const t0 = performance.now();
 
     const allDone = new Promise((resolve, reject) => {
-      const w0 = new Worker(new URL('./workers/transcribe.worker.js', import.meta.url), { type: 'module' });
-      this.workers.push({ worker: w0, terminated: false });
-      const wrap = { worker: w0, get terminated() { return wrap._t; }, set terminated(v) { wrap._t = v; }, _t: false };
-      const origTerm = w0.terminate.bind(w0);
-      w0.terminate = () => { wrap._t = true; origTerm(); };
-
-      this._attach(w0, 0, resolve, reject);
+      // 阶梯启动：W0 先加载写缓存，ready 后再启其余（避免并发重复下载）
+      const w0 = this._newWorker(resolve, reject);
       const firstReady = new Promise((res, rej) => {
         w0.addEventListener('message', function once(e) {
           if (e.data.type === 'ready') { w0.removeEventListener('message', once); res(); }
           if (e.data.type === 'error') { w0.removeEventListener('message', once); rej(new Error(e.data.message)); }
         });
       });
+      this.onProgress({ stage: 'model', frac: 0.15, msg: `Worker 1/${NW} 加载模型（${backend}）…` });
       w0.postMessage({ type: 'init', modelId, device: backend });
 
       (async () => {
         await firstReady;
+        this.onProgress({ stage: 'transcribe', frac: 0.2, msg: '开始转写…' });
         for (let k = 1; k < NW; k++) {
           if (this.aborted) break;
-          const wk = new Worker(new URL('./workers/transcribe.worker.js', import.meta.url), { type: 'module' });
-          const wrapK = { worker: wk, terminated: false };
-          const origTermK = wk.terminate.bind(wk);
-          wk.terminate = () => { wrapK.terminated = true; origTermK(); };
-          this.workers.push(wrapK);
-          this._attach(wk, k, resolve, reject);
+          this.onProgress({ stage: 'model', frac: 0.2, msg: `Worker ${k + 1}/${NW} 从缓存加载…` });
+          const wk = this._newWorker(resolve, reject);
           wk.postMessage({ type: 'init', modelId, device: backend });
         }
       })();

@@ -59,8 +59,9 @@ $('run').addEventListener('click', async () => {
       concurrency: parseInt($('concurrency').value, 10),
       useVad: $('usevad').checked,
       maxCharsPerCue: parseInt($('maxChars').value, 10) || 10,
-      onProgress: ({ stage, frac, doneSec, totalSec, elapsed, eta }) => {
-        if (stage === 'vad') setProgress('vad', 0.05 + frac * 0.1, `VAD 检测人声 ${(frac * 100) | 0}%`);
+      onProgress: ({ stage, frac, msg }) => {
+        if (msg) { setProgress(stage, frac || 0, msg); }
+        else if (stage === 'vad') setProgress('vad', 0.05 + frac * 0.1, `VAD 检测人声 ${(frac * 100) | 0}%`);
         else if (stage === 'done') setProgress('done', 1, '完成');
       },
     });
