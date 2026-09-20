@@ -98,7 +98,9 @@ export class TranscribePool {
   async run(pcm, segs, durationSec) {
     const { modelId, backend, concurrency } = this;
     this.pcm = pcm;
-    this.jobs = segs.filter(([ss, se]) => (se - ss) * 16000 >= 8000);
+    this.jobs = segs
+      .filter(([ss, se]) => (se - ss) * 16000 >= 8000)
+      .map(([ss, se]) => ({ ss, se })); // phase0 原样：转对象，数组会让 job.ss=undefined→NaN
     this.results = new Array(this.jobs.length);
     this.workers = [];
     this._done = false;
