@@ -1,13 +1,11 @@
-// 转写 Worker：独立 ort session，真并行（Phase 0 验证的架构）
+// 转写 Worker：独立 ort session，真并行（Phase 0 验证的架构，保持极简）
+// 缓存策略 = phase0 原样：浏览器 HTTP 缓存（大文件传输一次后 disk cache 命中）
+// + 主线程阶梯启动。不用 customCache/拦截器——实测引入挂起风险，收益仅 ~5MB 小文件。
 import { pipeline, env } from '@huggingface/transformers';
-import { makeCustomCache } from '../model-cache.js';
 
 env.allowRemoteModels = false;
 env.allowLocalModels = true;
 env.localModelPath = '/models/';
-// 根治多 Worker 重复下载：官方 customCache 接口，加载器内部读写 Cache API
-env.useCustomCache = true;
-env.customCache = await makeCustomCache();
 
 let transcriber = null;
 let loadedKey = '';

@@ -105,12 +105,9 @@ export class TranscribePool {
     const t0 = performance.now();
 
     const allDone = new Promise((resolve, reject) => {
-      // 阶梯启动：主线程先统一预取模型到 Cache API（一次网络），Worker 内零重复下载
+      // 阶梯启动（phase0 已验证）：W0 先加载（大文件一次网络→HTTP 磁盘缓存），
+      // ready 后再启 W1..N（命中缓存）。customCache/预取方案实测引入挂起，已回滚。
       (async () => {
-        await ensureModelCached(modelId, backend, (frac, f) => {
-          this.onProgress({ stage: 'model', frac: 0.05 + frac * 0.15, msg: `预取模型 ${f}` });
-        }).catch((e) => reject(e));
-
         const w0 = this._newWorker(resolve, reject);
         const firstReady = new Promise((res, rej) => {
           w0.addEventListener('message', function once(e) {
