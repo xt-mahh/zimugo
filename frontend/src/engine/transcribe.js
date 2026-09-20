@@ -15,11 +15,9 @@ export async function decodeMedia(file) {
   try {
     decoded = await ctx.decodeAudioData(ab);
   } catch (e) {
-    ctx.close();
     throw new Error(NO_AUDIO_TRACK);
   }
-  ctx.close();
-  // 立体声混单声道
+  // 立体声混单声道（先拷贝数据，再关 ctx——close 后 channel data 可能失效，phase0 教训）
   const chs = decoded.numberOfChannels;
   const len = decoded.length;
   const pcm = new Float32Array(len);
@@ -27,6 +25,7 @@ export async function decodeMedia(file) {
     const d = decoded.getChannelData(c);
     for (let i = 0; i < len; i++) pcm[i] += d[i] / chs;
   }
+  ctx.close();
   return { pcm, durationSec: decoded.duration };
 }
 
