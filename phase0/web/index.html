@@ -211,17 +211,16 @@ $('run').addEventListener('click', async () => {
     };
 
     if (CONC >= 2) {
-      // ---- Worker 池 ----
+      // ---- Worker 池（阶梯启动：第1个先加载写缓存，其余等它 ready 再启，避免并发重复下载模型）----
       const NW = Math.min(CONC, jobs.length);
-      $('status').textContent = `启动 ${NW} 个 Worker（后端: ${useDevice}，各加载一份模型）…`;
-      const workers = Array.from({ length: NW }, () => new Worker('/web/worker.js', { type: 'module' }));
+      const workers = [];
       let nextJob = 0;
-      await Promise.all(workers.map((w, wi) => new Promise((resolve, reject) => {
-        w.onerror = (e) => reject(new Error(`Worker${wi}: ${e.message}`));
-        w.onmessage = async (e) => {
+
+      const attachWorker = (w, wi) => new Promise((resolve, reject) => {
+        w.onerror = (e) => reject(new Error(`Worker${wi}: ${e.message || 'error'}`));
+        w.onmessage = (e) => {
           const m = e.data;
           if (m.type === 'ready') {
-            // 就绪后循环领任务
             const takeNext = () => {
               const i = nextJob++;
               if (i >= jobs.length) { w.terminate(); resolve(); return; }
@@ -234,7 +233,6 @@ $('run').addEventListener('click', async () => {
             results[m.jobId] = m.chunks;
             doneIdx++; doneSec += jobs[m.jobId].se - jobs[m.jobId].ss;
             updateProg();
-            // 继续领下一个
             const i = nextJob++;
             if (i >= jobs.length) { w.terminate(); resolve(); return; }
             const { ss, se } = jobs[i];
@@ -244,8 +242,28 @@ $('run').addEventListener('click', async () => {
             reject(new Error(m.message));
           }
         };
-        w.postMessage({ type: 'init', modelId: model, device: useDevice });
-      })));
+      });
+
+      // 阶梯式：W0 先加载（写缓存），ready 后再依次启动 W1..Wn-1（直接命中缓存）
+      $('status').textContent = `Worker 1/${NW} 加载模型（后端: ${useDevice}）…`;
+      const w0 = new Worker('/web/worker.js', { type: 'module' });
+      workers.push(attachWorker(w0, 0));
+      const p0ready = new Promise((res, rej) => {
+        const orig = w0.onmessage;
+        w0.addEventListener('message', function once(e) {
+          if (e.data.type === 'ready') { w0.removeEventListener('message', once); res(); }
+          if (e.data.type === 'error') { w0.removeEventListener('message', once); rej(new Error(e.data.message)); }
+        });
+      });
+      w0.postMessage({ type: 'init', modelId: model, device: useDevice });
+      await p0ready;
+      for (let k = 1; k < NW; k++) {
+        $('status').textContent = `Worker ${k + 1}/${NW} 从缓存加载…`;
+        const wk = new Worker('/web/worker.js', { type: 'module' });
+        workers.push(attachWorker(wk, k));
+        wk.postMessage({ type: 'init', modelId: model, device: useDevice });
+      }
+      await Promise.all(workers);
     } else {
       // ---- 主线程串行（对照） ----
       for (let ji = 0; ji < jobs.length; ji++) {
