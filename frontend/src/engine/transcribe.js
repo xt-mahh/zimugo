@@ -77,7 +77,9 @@ export async function transcribe(file, options = {}) {
     concurrency = 3,
     maxCharsPerCue = 10,
     useVad = true,
+    dropSubtitleNoise = false,
     onProgress = () => {},
+    onPoolReady = () => {},
   } = options;
 
   onProgress({ stage: 'decode', frac: 0 });
@@ -95,6 +97,7 @@ export async function transcribe(file, options = {}) {
     modelId: MODELS[modelKey], backend, concurrency,
     onProgress: (m) => onProgress(m),
   });
+  onPoolReady(pool); // UI 拿到 pool 引用用于取消（B003）
 
   let result;
   try {
@@ -102,6 +105,10 @@ export async function transcribe(file, options = {}) {
   } catch (e) {
     if (/aborted|AbortError/i.test(String(e))) throw new Error(TRANSCRIBE_ABORTED);
     throw e;
+  }
+  if (result.partial) {
+    // B003：取消 → 保留部分结果（draft），同样走简体化/分行管线后返回
+    result.aborted = true;
   }
 
   // 简体化 + 分行（DP-002）+ 复读块过滤 + 顺序校验（B001 then）

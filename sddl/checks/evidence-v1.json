@@ -1,0 +1,80 @@
+{
+  "c1_def": {
+    "behavior_tests": {
+      "B001": [
+        "logic.test.js"
+      ],
+      "B002": [],
+      "B003": [],
+      "B004": [],
+      "B005": [
+        "logic.test.js"
+      ],
+      "B006": [
+        "logic.test.js"
+      ]
+    },
+    "test_files": [
+      "logic.test.js",
+      "wrap.test.js"
+    ]
+  },
+  "c2_def": {
+    "interfaces": {
+      "transcribe": {
+        "exported": true
+      },
+      "editSubtitle": {
+        "exported": true
+      },
+      "exportSrt": {
+        "exported": true
+      },
+      "loadEngine": {
+        "exported": true
+      },
+      "MediaFile": {
+        "exported": false
+      },
+      "CuePatch": {
+        "exported": false
+      },
+      "SrtFile": {
+        "exported": false
+      },
+      "EngineInfo": {
+        "exported": false
+      },
+      "Cue": {
+        "exported": false
+      },
+      "TranscribeResult": {
+        "exported": false
+      },
+      "TranscribeOptions": {
+        "exported": false
+      }
+    },
+    "errors": {
+      "NO_AUDIO_TRACK": true,
+      "ENGINE_INIT_FAILED": false,
+      "TRANSCRIBE_ABORTED": true,
+      "CUE_NOT_FOUND": true,
+      "INVALID_TIME_RANGE": true,
+      "EMPTY_CUES": true,
+      "BACKEND_UNAVAILABLE": false,
+      "MODEL_DOWNLOAD_FAILED": false
+    }
+  },
+  "c3": {
+    "pass": true,
+    "passed": 20,
+    "total": 20,
+    "failed": 0,
+    "skipped": 0
+  },
+  "c4b_def": {
+    "docs_exists": false,
+    "docs_declared_apis_in_code": []
+  }
+}

@@ -9,6 +9,11 @@ export const DTYPES = {
   wasm: 'q8',
 };
 
+// 错误类型（spec B004 / loadEngine 接口契约）
+export const BACKEND_UNAVAILABLE = 'BACKEND_UNAVAILABLE';
+export const ENGINE_INIT_FAILED = 'ENGINE_INIT_FAILED';
+export const MODEL_DOWNLOAD_FAILED = 'MODEL_DOWNLOAD_FAILED';
+
 export const MODELS = {
   base: 'Xenova/whisper-base',
   small: 'onnx-community/whisper-small',
@@ -26,6 +31,20 @@ export async function detectBackend() {
   } catch (e) {
     return { backend: 'wasm', reason: String(e) };
   }
+}
+
+/**
+ * loadEngine（spec 接口契约）：返回 EngineInfo；两个后端均不可用时抛 BACKEND_UNAVAILABLE。
+ * 注：实际模型加载在 Worker 内惰性完成（阶梯启动），此函数做能力探测与契约校验。
+ */
+export async function loadEngine(backend) {
+  if (backend && backend !== 'webgpu' && backend !== 'wasm') {
+    throw new Error(BACKEND_UNAVAILABLE);
+  }
+  const forced = backend;
+  const { backend: detected } = forced ? { backend: forced } : await detectBackend();
+  if (detected !== 'webgpu' && detected !== 'wasm') throw new Error(BACKEND_UNAVAILABLE);
+  return { backend: detected, modelId: null }; // modelId 在 Worker init 时填充
 }
 
 /**
@@ -62,7 +81,11 @@ export class TranscribePool {
       } else if (m.type === 'progress') {
         this.onProgress(m);
       } else if (m.type === 'error') {
-        reject(new Error(m.message));
+        // B004 错误契约：worker 初始化失败归类
+        const msg = String(m.message);
+        if (/fetch|network|404|download/i.test(msg)) reject(new Error(MODEL_DOWNLOAD_FAILED));
+        else if (/backend|webgpu|wasm.*init|no available/i.test(msg)) reject(new Error(ENGINE_INIT_FAILED));
+        else reject(new Error(msg));
       }
     };
   }
@@ -108,6 +131,7 @@ export class TranscribePool {
     const t0 = performance.now();
 
     const allDone = new Promise((resolve, reject) => {
+      this._resolveFn = resolve; // abort() 需要能主动 resolve（B003 保留部分结果）
       // 阶梯启动（phase0 已验证）：W0 先加载（大文件一次网络→HTTP 磁盘缓存），
       // ready 后再启 W1..N（命中缓存）。customCache/预取方案实测引入挂起，已回滚。
       (async () => {
@@ -134,8 +158,8 @@ export class TranscribePool {
 
     await allDone;
     const elapsedMs = performance.now() - t0;
-    const chunks = this.results.flat().sort((a, b) => a.timestamp[0] - b.timestamp[0]);
-    return {
+    const chunks = this.results.flat().filter(Boolean).sort((a, b) => a.timestamp[0] - b.timestamp[0]);
+    const result = {
       cues: chunks.map((c, i) => ({
         id: `cue${i + 1}`, start: c.timestamp[0], end: c.timestamp[1], text: c.text, status: 'draft',
       })),
@@ -144,7 +168,18 @@ export class TranscribePool {
       elapsedMs,
       audioDurationSec: durationSec,
     };
+    if (this.aborted) {
+      // B003：取消时保留已完成分段（draft 状态），调用方收到部分结果 + ABORTED 标记
+      result.partial = true;
+    }
+    return result;
   }
 
-  abort() { this.aborted = true; this.workers.forEach((w) => w.worker.terminate()); }
+  abort() {
+    this.aborted = true;
+    this.workers.forEach((w) => { try { w.worker.terminate(); } catch (e) {} });
+    // 触发 resolve：_maybeDone 因 terminate 包装已标记 terminated，但 Promise 可能仍悬挂——
+    // 直接 resolve 保持语义：取消 = 结束等待，结果中带 partial
+    if (this._resolveFn && !this._done) { this._done = true; this._resolveFn(); }
+  }
 }

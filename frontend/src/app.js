@@ -51,7 +51,9 @@ $('run').addEventListener('click', async () => {
   running = true;
   $('run').disabled = true; $('cancel').disabled = false;
   $('err').textContent = '';
-  const t0 = performance.now();
+  let t0 = performance.now();
+  let activePool = null;
+  $('cancel').onclick = () => { if (activePool) activePool.abort(); };
   try {
     result = await transcribe(file, {
       backend: $('backendSel').value === 'auto' ? undefined : $('backendSel').value,
@@ -60,6 +62,7 @@ $('run').addEventListener('click', async () => {
       useVad: $('usevad').checked,
       dropSubtitleNoise: $('dropnoise')?.checked === true,
       maxCharsPerCue: parseInt($('maxChars').value, 10) || 10,
+      onPoolReady: (p) => { activePool = p; },
       onProgress: ({ stage, frac, msg }) => {
         if (msg) { setProgress(stage, frac || 0, msg); }
         else if (stage === 'vad') setProgress('vad', 0.05 + frac * 0.1, `VAD 检测人声 ${(frac * 100) | 0}%`);
@@ -69,17 +72,24 @@ $('run').addEventListener('click', async () => {
     const el = (performance.now() - t0) / 1000;
     $('rElapsed').textContent = `${el.toFixed(1)}s`;
     $('rRtf').textContent = (el / result.audioDurationSec).toFixed(2);
-    $('rBackend').textContent = `${result.backend}`;
+    $('rBackend').textContent = `${result.backend}${result.aborted ? '（已取消，部分结果）' : ''}`;
     $('rCount').textContent = result.cues.length;
     $('resultCard').style.display = '';
     renderCues(result.cues);
     $('editorCard').style.display = '';
-    setProgress('done', 1, `完成 ✅ ${result.cues.length} 条字幕，可直接编辑后导出`);
+    setProgress('done', 1, result.aborted
+      ? `已取消，保留 ${result.cues.length} 条部分结果（draft），可编辑后导出`
+      : `完成 ✅ ${result.cues.length} 条字幕，可直接编辑后导出`);
   } catch (e) {
     if (e.message === NO_AUDIO_TRACK) $('err').textContent = '未检测到人声（或无音轨），不生成字幕。';
-    else if (e.message === TRANSCRIBE_ABORTED) $('err').textContent = '转写已取消，已保留的部分结果未生成。';
+    else if (e.message === TRANSCRIBE_ABORTED) $('err').textContent = '转写已取消。';
     else $('err').textContent = '失败：' + e.message;
     setProgress('', 0, '失败');
+    if (e.message === TRANSCRIBE_ABORTED && result && result.cues && result.cues.length) {
+      // B003：取消但已有部分结果 → 照常渲染编辑器（draft）
+      renderCues(result.cues);
+      $('editorCard').style.display = '';
+    }
   } finally {
     running = false;
     $('run').disabled = false; $('cancel').disabled = true;
