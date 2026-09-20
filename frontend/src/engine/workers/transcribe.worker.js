@@ -1,7 +1,15 @@
 // 转写 Worker：独立 ort session，真并行（Phase 0 验证的架构，保持极简）
 // 缓存策略 = phase0 原样：浏览器 HTTP 缓存（大文件传输一次后 disk cache 命中）
 // + 主线程阶梯启动。不用 customCache/拦截器——实测引入挂起风险，收益仅 ~5MB 小文件。
+import { env as ONNX_ENV } from 'onnxruntime-web/webgpu';
 import { pipeline, env } from '@huggingface/transformers';
+
+// ort wasm 运行时本地托管（GFW 下 jsdelivr CDN 不可达，phase0 教训：
+// http.server 曾服务整个 node_modules 所以同源命中，vite 需显式指路径）
+ONNX_ENV.wasm.wasmPaths = {
+  wasm: new URL('/ort/ort-wasm-simd-threaded.jsep.wasm', self.location.origin).href,
+  mjs: new URL('/ort/ort-wasm-simd-threaded.jsep.mjs', self.location.origin).href,
+};
 
 env.allowRemoteModels = false;
 env.allowLocalModels = true;

@@ -14,6 +14,12 @@ non_goals:
   - "批量处理、字幕样式预览、LLM 同音字纠错（could 级，非首版目标）"
   - "mac/Linux 桌面包（首版桌面仅 Windows，其余平台走 Web 版；按 DP-005 变更提案 desktop-dual-channel）"
 
+# 工程铁律（Phase 0 → Phase 1 迁移实测教训，2026-09-20 用户确立）：
+# 从已验证的测试代码/上一版本演进而来时，必须逐字对照迁移（diff 到行为一致），
+# 禁止"参考着重写"——phase0 极简 Worker 实测 RTF 0.74 全流程通过，
+# 而"重写+优化"（预取/拦截器/customCache 三层缓存）连续引入 3 个故障。
+# 前期测试的意义只在延续中存在：从头构建 = 测试归零。
+
 decision_points:
   - id: "DP-001"
     topic: "转写引擎选型"

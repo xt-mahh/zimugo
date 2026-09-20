@@ -2,6 +2,12 @@
 // Phase 0 坑：tensor shape 必须 [1, 512]，[512,1] 会触发 Conv Invalid input shape {65}
 import * as ort from 'onnxruntime-web';
 
+// ort wasm 本地托管（CDN 不可达，同 worker）
+ort.env.wasm.wasmPaths = {
+  wasm: new URL('/ort/ort-wasm-simd-threaded.wasm', self.location.origin).href,
+  mjs: new URL('/ort/ort-wasm-simd-threaded.mjs', self.location.origin).href,
+};
+
 const SR = 16000, WIN = 512;
 const TH_ON = 0.5, TH_OFF = 0.35, PAD = 0.3, MIN_SEG = 0.5, MIN_GAP = 0.2;
 
