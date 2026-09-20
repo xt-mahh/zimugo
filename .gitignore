@@ -1,3 +1,7 @@
 test-media/
 out_*.json
 node_modules/
+frontend/.vitest/
+app/frontend/
+app/build/bin/
+*.exe
