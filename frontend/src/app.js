@@ -58,6 +58,7 @@ $('run').addEventListener('click', async () => {
       modelKey: $('model').value,
       concurrency: parseInt($('concurrency').value, 10),
       useVad: $('usevad').checked,
+      dropSubtitleNoise: $('dropnoise')?.checked === true,
       maxCharsPerCue: parseInt($('maxChars').value, 10) || 10,
       onProgress: ({ stage, frac, msg }) => {
         if (msg) { setProgress(stage, frac || 0, msg); }

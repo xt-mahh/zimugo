@@ -7,6 +7,37 @@ import { splitCueByChars } from '../editor/wrap.js';
 export const NO_AUDIO_TRACK = 'NO_AUDIO_TRACK';
 export const TRANSCRIBE_ABORTED = 'TRANSCRIBE_ABORTED';
 
+/**
+ * 后处理：剔除解码器复读块与 BGM 歌词噪声
+ * - 连续 ≥3 条相同文本（如 (((((((( ×40）→ 整块丢弃（whisper 对音乐段的复读病）
+ * - 括号字幕类（(字幕:xxx)/(唱)/(Oh xxx)）默认保留（UI 灰显），dropSubtitles=true 时丢弃
+ */
+export function postprocess(cues, { dropSubtitleNoise = false } = {}) {
+  const out = [];
+  let runStart = -1, runText = '', runCount = 0;
+  const flushRun = () => {
+    if (runCount >= 3 && runText.length <= 12) {
+      // 复读块：丢弃（runStart..out.length 区间）
+      out.length = runStart;
+    }
+    runStart = -1; runText = ''; runCount = 0;
+  };
+  for (const c of cues) {
+    const t = c.text.trim();
+    const isNoise = /^[(（].*[)）)]?$/.test(t) || /^\(+$/.test(t);
+    if (dropSubtitleNoise && isNoise) continue;
+    if (t === runText) {
+      runCount++;
+    } else {
+      flushRun();
+      runStart = out.length; runText = t; runCount = 1;
+    }
+    out.push(c);
+  }
+  flushRun();
+  return out.filter((c) => c.text.trim().length > 0);
+}
+
 /** 浏览器内解码媒体文件为 16kHz 单声道 Float32 PCM */
 export async function decodeMedia(file) {
   const ab = await file.arrayBuffer();
@@ -73,12 +104,15 @@ export async function transcribe(file, options = {}) {
     throw e;
   }
 
-  // 简体化 + 分行（DP-002）+ 顺序校验（B001 then）
-  result.cues = result.cues
-    .map((c) => ({ ...c, text: toSimplified(c.text).trim() }))
-    .filter((c) => c.text.length > 0)
-    .flatMap((c) => splitCueByChars(c, maxCharsPerCue))
-    .sort((a, b) => a.start - b.start);
+  // 简体化 + 分行（DP-002）+ 复读块过滤 + 顺序校验（B001 then）
+  result.cues = postprocess(
+    result.cues
+      .map((c) => ({ ...c, text: toSimplified(c.text).trim() }))
+      .filter((c) => c.text.length > 0)
+      .flatMap((c) => splitCueByChars(c, maxCharsPerCue))
+      .sort((a, b) => a.start - b.start),
+    { dropSubtitleNoise: options.dropSubtitleNoise === true },
+  );
 
   onProgress({ stage: 'done', frac: 1 });
   return result;
