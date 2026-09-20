@@ -1,6 +1,6 @@
 meta:
   id: "localsub"
-  version: "0.1.0"
+  version: "0.2.0"
   domain: "subtitle-tool"
   status: "frozen"
   dependencies: []
@@ -12,6 +12,7 @@ non_goals:
   - "付费功能/账号系统/云端转写服务"
   - "多语言界面与多语言识别（首版仅中文识别）"
   - "批量处理、字幕样式预览、LLM 同音字纠错（could 级，非首版目标）"
+  - "mac/Linux 桌面包（首版桌面仅 Windows，其余平台走 Web 版；按 DP-005 变更提案 desktop-dual-channel）"
 
 decision_points:
   - id: "DP-001"
@@ -47,13 +48,13 @@ decision_points:
     requires_confirmation: true
     status: "confirmed"
   - id: "DP-005"
-    topic: "前端技术栈"
-    default: "vanilla JS + Vite，零运行时依赖"
-    alternatives: ["React/Vue + Vite", "Svelte"]
-    rationale: "单页工具交互面小，零依赖最符合开源轻量定位；模型侧由 Transformers.js 承担"
+    topic: "前端技术栈与交付形态"
+    default: "vanilla JS + Vite（Web 渠道）+ Wails v2 桌面封装（Windows，前端 embed 进 Go binary）"
+    alternatives: ["Electron（体积 ~100MB 过重）", "Tauri（需 Rust 工具链）", "仅 Web 单渠道"]
+    rationale: "双渠道扩大触达；Wails 本地协议天然满足 WebGPU 安全上下文；作者有 Go+内嵌前端成熟经验（按变更提案 desktop-dual-channel，用户 2026-09-20 批准）"
     category: "implementation"
     requires_confirmation: false
-    status: "delegated"
+    status: "modified"
 
 interfaces:
   - name: "transcribe"
@@ -191,6 +192,7 @@ behaviors:
       - "后端初始化失败时抛出 ENGINE_INIT_FAILED"
       - "模型首次下载失败时抛出 MODEL_DOWNLOAD_FAILED，并给出重试入口"
       - "模型首次下载后写入浏览器缓存，断网状态下引擎加载返回 EngineInfo（离线可复现实测）"
+      - "桌面版（Wails WebView）模型从本地资源或用户数据目录读取，路径由宿主注入，loadEngine 返回 EngineInfo 且 modelId 指向本地路径；Web 版维持浏览器缓存策略（按 DP-005 双渠道）"
     acceptance: true
   - id: "B005"
     interface: "editSubtitle"
@@ -224,7 +226,7 @@ boundaries:
     expectation: "导入前拦截并提示浏览器内存上限，不尝试加载"
     priority: "should"
   - condition: "断网（模型已缓存）"
-    expectation: "全功能可用，无网络请求依赖"
+    expectation: "Web 版全功能可用，无网络请求依赖；桌面版无网络依赖（按 DP-005）"
     priority: "must"
   - condition: "非 Chrome/Edge 120+ 浏览器"
     expectation: "显示不兼容提示与建议浏览器列表，不进入主流程"
@@ -258,3 +260,9 @@ quality_constraints:
       scope: "整个转写流程"
       verification: "design"
       priority: "must"
+  packaging:
+    - metric: "桌面包体积（不含模型）"
+      threshold: "<= 30MB"
+      scope: "Windows x64 Wails 构建"
+      verification: "env"
+      priority: "should"
