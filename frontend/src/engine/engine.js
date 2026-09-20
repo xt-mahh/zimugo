@@ -3,7 +3,6 @@
 //  - WebGPU 必须 fp16 encoder + q4 decoder（q8 全量化在 WebGPU 上输出乱码）
 //  - WASM 用 q8（CPU 上快且稳）
 //  - Worker 阶梯启动，避免并发首载重复下载模型
-import { ensureModelCached } from './model-cache.js';
 
 export const DTYPES = {
   webgpu: { encoder_model: 'fp16', decoder_model_merged: 'q4' },
