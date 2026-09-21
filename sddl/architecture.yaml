@@ -1,0 +1,104 @@
+# localsub 架构 Spec（v2.0 迁移补建，反向提取自已收敛代码）
+# 按 migration-v1-to-v2.md B 档：现状即决策，存量架构债显性化
+
+meta:
+  id: "localsub"
+  version: "1.0.0"
+  status: "frozen"
+  input_specs:
+    - "subtitle-tool@0.2.0"
+
+single_module: false
+
+modules:
+  - name: "engine-core"
+    responsibilities:
+      - "浏览器内推理编排：后端探测、Worker 池调度、VAD 前置分段"
+      - "媒体解码（16kHz 单声道）与分段 PCM 分发"
+      - "推理结果后处理编排（简体化/分行/噪声过滤）"
+    owns: ["subtitle-tool"]
+    depends_on: []
+    path: "frontend/src/engine"
+
+  - name: "editor"
+    owns: []
+    responsibilities:
+      - "字幕 cue 编辑与时间轴校验"
+      - "简繁转换、词边界折行（DP-002）、短尾合并"
+    depends_on: []
+    path: "frontend/src/editor"
+
+  - name: "srt-export"
+    owns: []
+    responsibilities:
+      - "SRT 格式序列化/反序列化（B006）"
+    depends_on: []
+    path: "frontend/src/export"
+
+  - name: "ui-shell"
+    owns: []
+    responsibilities:
+      - "页面交互、进度展示、取消（B003 部分结果渲染）"
+      - "用户选项（后端/并发/字数阈值/滤BGM）收集"
+    depends_on: ["engine-core", "editor", "srt-export"]
+    path: "frontend/src" # app.js + index.html
+
+tech_stack:
+  language: "javascript (ESM, vanilla, DP-005)"
+  framework: "vite ^8 + vitest ^5"
+  storage: "浏览器 Cache API + HTTP 磁盘缓存（无服务端状态）"
+  notes: "transformers.js 3.8.1 + onnxruntime-web 1.22.0-dev 钉死（4.x 重打包 ort 导致 webgpuInit 错误）"
+
+directory_layout: |
+  frontend/src/engine/       # engine-core（含 workers/transcribe.worker.js、model-cache.js）
+  frontend/src/editor/       # editor
+  frontend/src/export/       # srt-export
+  frontend/src/app.js        # ui-shell
+  frontend/public/models/    # 本地同源模型资产（不入 git，构建时拷贝）
+  frontend/public/workers/   # 静态未打包 worker + ort wasm
+  app/                       # Wails 桌面壳（main.go/app.go/wails.json/构建脚本）
+  docs/current|planned/      # 能力文档
+  sddl/                      # spec/架构/检查产物
+
+data_flows:
+  - from: "ui-shell"
+    to: "engine-core"
+    payload: "File + TranscribeOptions"
+    note: "用户文件与选项 → 转写编排"
+  - from: "engine-core"
+    to: "editor"
+    payload: "raw cues"
+    note: "转写结果经 zhconv/wrap 后处理（transcribe.js 内联调用，编译期依赖）"
+  - from: "ui-shell"
+    to: "srt-export"
+    payload: "edited cues"
+    note: "编辑完成 → 导出 SRT"
+
+decision_points:
+  - id: "DP-101"
+    topic: "localsub v2.0 迁移：架构分层现状固化"
+    default: "四模块划分（engine-core/editor/srt-export/ui-shell）如上"
+    alternatives: ["single_module: true（单模块豁免）", "三模块（editor 并入 engine-core）"]
+    rationale: "spec 域 subtitle-tool 由 engine-core 独占；editor/srt-export 无 engine 依赖可独立测试（20/20 单测即证）；ui-shell 是唯一组装点"
+    category: "contract"
+    requires_confirmation: true
+    status: "confirmed"
+  - id: "DP-102"
+    topic: "存量耦合登记：engine-core→editor 编译期依赖"
+    default: "保留 transcribe.js 内联调用 zhconv/wrap（现状）"
+    alternatives: ["后处理上移 ui-shell（transcribe 返回 raw cues）", "抽独立 postprocess 模块"]
+    rationale: "现状即决策（迁移指南 B 档）；上移会改公共 API 返回语义，属 L2 变更，收益不抵风险"
+    category: "constraint"
+    requires_confirmation: true
+    status: "confirmed"
+
+boundaries:
+  - condition: "WebGPU 初始化失败或不可用"
+    expectation: "detectBackend 回落 WASM；双后端均失败抛 BACKEND_UNAVAILABLE"
+    priority: "must"
+  - condition: "模型资产缺失（本地同源 models/ 不完整）"
+    expectation: "Worker init 抛 MODEL_DOWNLOAD_FAILED，UI 显示失败原因"
+    priority: "must"
+  - condition: "用户取消转写"
+    expectation: "保留已完成分段（partial），UI 渲染部分结果可编辑导出"
+    priority: "must"
