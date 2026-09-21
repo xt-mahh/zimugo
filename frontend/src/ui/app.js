@@ -1,8 +1,8 @@
 // localsub 主界面逻辑（B001-B006 串接）
-import { transcribe, NO_AUDIO_TRACK, TRANSCRIBE_ABORTED } from './engine/transcribe.js';
-import { detectBackend, DTYPES } from './engine/engine.js';
-import { exportSrt } from './export/srt.js';
-import { editSubtitle } from './editor/cue.js';
+import { transcribe, NO_AUDIO_TRACK, TRANSCRIBE_ABORTED } from '../engine/transcribe.js';
+import { detectBackend, DTYPES } from '../engine/engine.js';
+import { exportSrt } from '../export/srt.js';
+import { editSubtitle } from '../editor/cue.js';
 
 const $ = (id) => document.getElementById(id);
 let file = null, result = null, running = false;

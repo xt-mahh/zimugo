@@ -17,7 +17,7 @@ modules:
       - "媒体解码（16kHz 单声道）与分段 PCM 分发"
       - "推理结果后处理编排（简体化/分行/噪声过滤）"
     owns: ["subtitle-tool"]
-    depends_on: []
+    depends_on: ["editor"] # DP-102：transcribe.js 编译期依赖 zhconv/wrap（现状即决策）
     path: "frontend/src/engine"
 
   - name: "editor"
@@ -41,7 +41,7 @@ modules:
       - "页面交互、进度展示、取消（B003 部分结果渲染）"
       - "用户选项（后端/并发/字数阈值/滤BGM）收集"
     depends_on: ["engine-core", "editor", "srt-export"]
-    path: "frontend/src" # app.js + index.html
+    path: "frontend/src/ui" # app.js（index.html 是 vite 入口宿主，不属于模块代码）
 
 tech_stack:
   language: "javascript (ESM, vanilla, DP-005)"
