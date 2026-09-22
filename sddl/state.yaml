@@ -1,5 +1,5 @@
 spec_status: frozen
 arch_status: frozen
-current_phase: complete
-budget: { formation: 35%, implementation: 12%, revision: 100% }
-last_check: { type: c1-c4, spec: subtitle-tool-v0.2.0, result: CONVERGED, at: 2026-09-20T18:00:00+08:00 }
+current_phase: derivation
+budget: { formation: 35%, implementation: 15%, revision: 100% }
+last_check: { type: arch, id: localsub-arch@1.1.0, result: pass, at: 2026-09-22T11:40:00+08:00 }

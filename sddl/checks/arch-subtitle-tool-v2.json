@@ -1,0 +1,30 @@
+{
+  "check": "C-arch",
+  "target": "architecture.yaml@1.1.0 (regen per SDDL v2.1.1)",
+  "input_specs": "subtitle-tool@0.2.0 frozen",
+  "at": "2026-09-22T11:40:00+08:00",
+  "results": {
+    "c_arch_struct": "pass",
+    "c_arch_def1": "pass",
+    "c_arch_def2": "pass (project collector: import_graph == declared depends_on)",
+    "c_arch_def3": "pass (project collector: all 4 module dirs ok)",
+    "c_arch_sem": "deferred to /sddl:verify (LLM cohesion review)"
+  },
+  "evidence": {
+    "tool": "check_arch.py v2.1.1",
+    "collector": "sddl/checks/collect_arch.cjs",
+    "import_graph": {
+      "engine-core": [
+        "editor"
+      ],
+      "editor": [],
+      "srt-export": [],
+      "ui-shell": [
+        "editor",
+        "engine-core",
+        "srt-export"
+      ]
+    },
+    "violations": []
+  }
+}

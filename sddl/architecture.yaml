@@ -1,9 +1,11 @@
-# localsub 架构 Spec（v2.0 迁移补建，反向提取自已收敛代码）
-# 按 migration-v1-to-v2.md B 档：现状即决策，存量架构债显性化
+# localsub 架构 Spec（v1.1.0，按 SDDL v2.1.1 从冻结 spec 正向重生成）
+# 输入：sddl/specs/subtitle-tool/spec.yaml@0.2.0 (frozen)
+# 划分：沿用 DP-101 已确认的四模块结论（用户 2026-09-22 重新确认）
+# 门禁：check_arch.py（C-arch-struct + def1）+ 项目收集器 collect_arch.cjs（def2/def3，JS/ESM）
 
 meta:
   id: "localsub"
-  version: "1.0.0"
+  version: "1.1.0"
   status: "frozen"
   input_specs:
     - "subtitle-tool@0.2.0"
@@ -46,17 +48,18 @@ modules:
 tech_stack:
   language: "javascript (ESM, vanilla, DP-005)"
   framework: "vite ^8 + vitest ^5"
-  storage: "浏览器 Cache API + HTTP 磁盘缓存（无服务端状态）"
+  storage: "浏览器 Cache API + HTTP 磁盘缓存（无服务端状态）；桌面版宿主注入本地模型路径（B004/DP-005）"
   notes: "transformers.js 3.8.1 + onnxruntime-web 1.22.0-dev 钉死（4.x 重打包 ort 导致 webgpuInit 错误）"
 
 directory_layout: |
   frontend/src/engine/       # engine-core（含 workers/transcribe.worker.js、model-cache.js）
   frontend/src/editor/       # editor
   frontend/src/export/       # srt-export
-  frontend/src/app.js        # ui-shell
+  frontend/src/ui/           # ui-shell（app.js）
   frontend/public/models/    # 本地同源模型资产（不入 git，构建时拷贝）
   frontend/public/workers/   # 静态未打包 worker + ort wasm
   app/                       # Wails 桌面壳（main.go/app.go/wails.json/构建脚本）
+  tests/                     # 模块单测（vitest，与模块目录对应）
   docs/current|planned/      # 能力文档
   sddl/                      # spec/架构/检查产物
 
@@ -76,10 +79,10 @@ data_flows:
 
 decision_points:
   - id: "DP-101"
-    topic: "localsub v2.0 迁移：架构分层现状固化"
+    topic: "架构分层：模块划分方案"
     default: "四模块划分（engine-core/editor/srt-export/ui-shell）如上"
     alternatives: ["single_module: true（单模块豁免）", "三模块（editor 并入 engine-core）"]
-    rationale: "spec 域 subtitle-tool 由 engine-core 独占；editor/srt-export 无 engine 依赖可独立测试（20/20 单测即证）；ui-shell 是唯一组装点"
+    rationale: "spec 域 subtitle-tool 由 engine-core 独占；editor/srt-export 无 engine 依赖可独立测试（20/20 单测即证）；ui-shell 是唯一组装点。用户 2026-09-22 用 SDDL v2.1.1 重构时重新确认沿用"
     category: "contract"
     requires_confirmation: true
     status: "confirmed"
@@ -87,7 +90,7 @@ decision_points:
     topic: "存量耦合登记：engine-core→editor 编译期依赖"
     default: "保留 transcribe.js 内联调用 zhconv/wrap（现状）"
     alternatives: ["后处理上移 ui-shell（transcribe 返回 raw cues）", "抽独立 postprocess 模块"]
-    rationale: "现状即决策（迁移指南 B 档）；上移会改公共 API 返回语义，属 L2 变更，收益不抵风险"
+    rationale: "现状即决策；上移会改公共 API 返回语义，属 L2 变更，收益不抵风险。spec 铁律：已验证代码演进必 diff 到行为一致，禁止参考重写"
     category: "constraint"
     requires_confirmation: true
     status: "confirmed"
@@ -96,7 +99,7 @@ boundaries:
   - condition: "WebGPU 初始化失败或不可用"
     expectation: "detectBackend 回落 WASM；双后端均失败抛 BACKEND_UNAVAILABLE"
     priority: "must"
-  - condition: "模型资产缺失（本地同源 models/ 不完整）"
+  - condition: "模型资产缺失（本地同源 models/ 不完整，桌面版本地路径无效）"
     expectation: "Worker init 抛 MODEL_DOWNLOAD_FAILED，UI 显示失败原因"
     priority: "must"
   - condition: "用户取消转写"
