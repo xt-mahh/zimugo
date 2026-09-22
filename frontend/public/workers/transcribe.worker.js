@@ -9,7 +9,8 @@ env.allowLocalModels = true;
 env.localModelPath = '/models/';
 // ort wasm 同源托管（桌面版零外网铁律）：transformers 默认 wasmPaths 指 CDN jsdelivr，
 // 离线/Wails 协议下 fetch 失败 → 被误归类 MODEL_DOWNLOAD_FAILED（2026-09-22 桌面实测）
-env.wasm.wasmPaths = '/ort/';
+// ⚠️ transformers 3.x API：env 顶层无 wasm 键（首测 env.wasm=undefined 报 TypeError），在 backends.onnx.wasm 下
+env.backends.onnx.wasm.wasmPaths = '/ort/';
 
 let transcriber = null;
 let loadedKey = '';
