@@ -1,14 +1,14 @@
-# localsub 架构 Spec（v1.1.0，按 SDDL v2.1.1 从冻结 spec 正向重生成）
+# ZimuGo 架构 Spec（v1.1.0，按 SDDL v2.1.1 从冻结 spec 正向重生成）
 # 输入：sddl/specs/subtitle-tool/spec.yaml@0.2.0 (frozen)
 # 划分：沿用 DP-101 已确认的四模块结论（用户 2026-09-22 重新确认）
 # 门禁：check_arch.py（C-arch-struct + def1）+ 项目收集器 collect_arch.cjs（def2/def3，JS/ESM）
 
 meta:
-  id: "localsub"
+  id: "zimugo"
   version: "1.1.0"
   status: "frozen"
   input_specs:
-    - "subtitle-tool@0.2.0"
+    - "subtitle-tool@0.2.1"
 
 single_module: false
 

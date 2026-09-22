@@ -18,7 +18,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "localsub · 本地字幕工具",
+		Title:     "ZimuGo · 本地字幕工具",
 		Width:     1024,
 		Height:    720,
 		MinWidth:  800,

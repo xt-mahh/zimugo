@@ -1,4 +1,4 @@
-# localsub 已实现能力（status: current）
+# ZimuGo 已实现能力（status: current）
 
 > 对应 spec v0.2.0。本文档只描述已实现并验证的行为。
 

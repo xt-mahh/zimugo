@@ -16,7 +16,7 @@ app/build/bin/
 *.exe
 
 # 误入库的调试二进制（历史遗留，见 8d1b1b6）
-app/localsub
+app/zimugo
 
 # ort wasm 二进制（npm 包内容物，构建时由 build-desktop.sh / 构建流程拷入 public/ort）
 frontend/public/ort/

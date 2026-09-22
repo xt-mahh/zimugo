@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "localsub",
-  "outputfilename": "localsub",
+  "name": "zimugo",
+  "outputfilename": "ZimuGo",
   "frontend:install": "npm install --ignore-scripts",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
@@ -10,7 +10,7 @@
     "name": "sanchong"
   },
   "info": {
-    "productName": "localsub",
+    "productName": "ZimuGo",
     "productVersion": "0.1.0",
     "copyright": "Copyright © 2026",
     "comments": "浏览器本地 AI 字幕工具（音频永不上传）"

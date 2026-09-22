@@ -1,5 +1,5 @@
 #!/bin/bash
-# localsub 桌面版构建（Linux 交叉编译 windows/amd64）
+# ZimuGo 桌面版构建（Linux 交叉编译 windows/amd64）
 # 2026-09-22 修复：worker 以 /node_modules/@huggingface/... 绝对路径 import transformers，
 # 但该路径不在 public/ → vite 不拷贝 → go:embed 的 dist 缺此文件 → 桌面版 Worker init 404。
 # 修复 = 构建前把 transformers dist 拷进 public/node_modules/（Web 版同源加载路径不变，一并受益）。
@@ -19,12 +19,12 @@ mkdir -p public/ort
 cp -f node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*.wasm node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*.mjs public/ort/
 echo "[1.5/3] ort wasm → public/ort/"
 echo "[2/3] vite build（含 models/workers/ort/node_modules 原样拷贝，约 30s）"
-npx vite build > /tmp/localsub-vite-build.log 2>&1 || { tail -20 /tmp/localsub-vite-build.log; exit 1; }
-grep -E "built in" /tmp/localsub-vite-build.log || true
+npx vite build > /tmp/zimugo-vite-build.log 2>&1 || { tail -20 /tmp/zimugo-vite-build.log; exit 1; }
+grep -E "built in" /tmp/zimugo-vite-build.log || true
 
 echo "[3/3] 同步 dist → app/frontend/dist + wails 交叉编译"
 rm -rf ../app/frontend/dist
 cp -r dist ../app/frontend/dist
 cd ../app
 wails build -platform windows/amd64 -s 2>&1 | tail -3   # -s: dist 已由本脚本同步，跳过 wails 前端步骤（其 npm 环节在无 package.json 的 app/frontend 上会 254）
-ls -lh build/bin/localsub.exe
+ls -lh build/bin/ZimuGo.exe

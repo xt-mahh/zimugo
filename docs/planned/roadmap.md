@@ -1,4 +1,4 @@
-# localsub 规划中能力（status: planned）
+# ZimuGo 规划中能力（status: planned）
 
 > 不参与 C4 一致性检查。
 

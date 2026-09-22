@@ -1,6 +1,6 @@
 meta:
-  id: "localsub"
-  version: "0.2.0"
+  id: "zimugo"
+  version: "0.2.1"
   domain: "subtitle-tool"
   status: "frozen"
   dependencies: []

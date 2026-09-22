@@ -3,7 +3,7 @@
 // 且 vite 预打包依赖内的 fetch 引用无法被外层覆盖拦截（HAR 实锤两层尝试均失败）。
 // 正解：官方 env.customCache 接口 —— transformers.js 加载器内部直接读写 Cache API。
 // 同时按 dtype 只预取一套模型，避免双精度 660MB 浪费。
-const CACHE_NAME = 'localsub-models-v1';
+const CACHE_NAME = 'zimugo-models-v1';
 
 /** 每个 dtype 策略需要的 onnx 文件（相对 onnx/） */
 const ONNX_FILES = {
