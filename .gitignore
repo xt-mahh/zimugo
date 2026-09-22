@@ -23,3 +23,8 @@ frontend/public/ort/
 frontend/public/workers/*.wasm
 frontend/public/workers/*.mjs
 frontend/public/node_modules/
+
+# 本地 HTTPS 自签证书（私钥不入库）
+phase0/cert.pem
+phase0/key.pem
+*.pem
