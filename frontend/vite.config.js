@@ -1,10 +1,14 @@
 import { defineConfig } from 'vite';
 import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 // 复用 phase0 自签证书 —— HTTPS 安全上下文是硬需求：
 // WebGPU 与 Cache API 均只在 secure context 可用（Phase 0 实测）
-const cert = readFileSync('/root/workspace/localsub/phase0/cert.pem');
-const key = readFileSync('/root/workspace/localsub/phase0/key.pem');
+// 2026-09-22: 改仓库相对定位（项目自 /root/workspace 迁至 NAS；逻辑零改动）
+const here = dirname(fileURLToPath(import.meta.url));
+const cert = readFileSync(join(here, '../phase0/cert.pem'));
+const key = readFileSync(join(here, '../phase0/key.pem'));
 
 export default defineConfig({
   server: {

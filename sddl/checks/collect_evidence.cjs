@@ -9,7 +9,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const ROOT = '/root/workspace/localsub';
+// 2026-09-22: ROOT 改为仓库相对定位（原硬编码 /root/workspace/localsub，
+// 项目迁至 /nas1/nas1/project/localsub 后失效；逻辑零改动，仅修路径——见 commit message）
+const ROOT = path.resolve(__dirname, '..', '..');
 const FE = path.join(ROOT, 'frontend');
 
 const specFile = fs.readFileSync(path.join(ROOT, 'sddl/specs/subtitle-tool/spec.yaml'), 'utf8');
