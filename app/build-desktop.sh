@@ -22,5 +22,5 @@ echo "[3/3] 同步 dist → app/frontend/dist + wails 交叉编译"
 rm -rf ../app/frontend/dist
 cp -r dist ../app/frontend/dist
 cd ../app
-wails build -platform windows/amd64 2>&1 | tail -5
+wails build -platform windows/amd64 -s 2>&1 | tail -3   # -s: dist 已由本脚本同步，跳过 wails 前端步骤（其 npm 环节在无 package.json 的 app/frontend 上会 254）
 ls -lh build/bin/localsub.exe

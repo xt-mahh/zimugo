@@ -11,7 +11,7 @@
   按 elapsed/frac 估算，frac ≥ 25% 后启用）
 - 错误：`NO_AUDIO_TRACK`（无音轨/无人声）、`TRANSCRIBE_ABORTED`（取消且无部分结果）
 - 取消：`abort()` 保留已完成分段，结果带 `aborted: true`（B003）
-- dtype 铁律：WebGPU=fp16+q4 / WASM=q8（q8 在 WebGPU 上输出乱码）
+- dtype 铁律：双后端统一 fp16+q4（L2 变更 desktop-slim-models，2026-09-22）；q8 在 WebGPU 上输出乱码（phase0 实测），包内已不含 q8 档；WASM 回落时 fp16 内部升 fp32，速度较旧 q8 档慢但功能等价
 
 ### loadEngine(backend?) → EngineInfo（B004）
 - 位置：`frontend/src/engine/engine.js`

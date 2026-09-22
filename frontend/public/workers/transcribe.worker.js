@@ -7,6 +7,9 @@ import { pipeline, env } from '/node_modules/@huggingface/transformers/dist/tran
 env.allowRemoteModels = false;
 env.allowLocalModels = true;
 env.localModelPath = '/models/';
+// ort wasm 同源托管（桌面版零外网铁律）：transformers 默认 wasmPaths 指 CDN jsdelivr，
+// 离线/Wails 协议下 fetch 失败 → 被误归类 MODEL_DOWNLOAD_FAILED（2026-09-22 桌面实测）
+env.wasm.wasmPaths = '/ort/';
 
 let transcriber = null;
 let loadedKey = '';
@@ -17,10 +20,12 @@ self.onmessage = async (e) => {
     if (type === 'init') {
       const key = `${modelId}|${device}`;
       if (!transcriber || loadedKey !== key) {
+        // dtype 双后端统一 fp16+q4（2026-09-22 L2 变更 desktop-slim-models）：
+        // 旧策略 WASM=q8 / WebGPU=fp16+q4，导致两套模型都得随包（792M）。
+        // q4 是 MatMulNBits int4 量化，WASM(CPU) EP 支持；fp16 在 CPU 上内部升 fp32。
+        // 铁律保留：q8 严禁用于 WebGPU（phase0 实测乱码）——现在根本不带 q8 文件。
         transcriber = await pipeline('automatic-speech-recognition', modelId, {
-          dtype: device === 'webgpu'
-            ? { encoder_model: 'fp16', decoder_model_merged: 'q4' }
-            : 'q8',
+          dtype: { encoder_model: 'fp16', decoder_model_merged: 'q4' },
           device: device || 'wasm',
         });
         loadedKey = key;

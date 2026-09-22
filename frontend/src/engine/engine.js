@@ -5,8 +5,10 @@
 //  - Worker 阶梯启动，避免并发首载重复下载模型
 
 export const DTYPES = {
+  // 双后端统一 fp16+q4（L2 变更 desktop-slim-models）：q4(MatMulNBits int4) WASM EP 支持，
+  // fp16 在 CPU 内部升 fp32；q8 仅 WASM 时代的备份档已随包移除
   webgpu: { encoder_model: 'fp16', decoder_model_merged: 'q4' },
-  wasm: 'q8',
+  wasm: { encoder_model: 'fp16', decoder_model_merged: 'q4' },
 };
 
 // 错误类型（spec B004 / loadEngine 接口契约）
