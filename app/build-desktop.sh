@@ -14,6 +14,10 @@ mkdir -p "$(dirname "$TJS_DST")"
 cp -f "$TJS_SRC" "$TJS_DST"
 echo "[1/3] transformers.min.js → public/node_modules/ ($(du -h "$TJS_DST" | cut -f1))"
 
+# ort wasm 同步（已移出 git，npm 包内容物；Web 版 dev 时 vite 从 node_modules 服务不到 /ort/ 静态路径，需常驻 public/ort）
+mkdir -p public/ort
+cp -f node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*.wasm node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*.mjs public/ort/
+echo "[1.5/3] ort wasm → public/ort/"
 echo "[2/3] vite build（含 models/workers/ort/node_modules 原样拷贝，约 30s）"
 npx vite build > /tmp/localsub-vite-build.log 2>&1 || { tail -20 /tmp/localsub-vite-build.log; exit 1; }
 grep -E "built in" /tmp/localsub-vite-build.log || true
