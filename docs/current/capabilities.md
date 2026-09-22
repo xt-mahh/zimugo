@@ -7,7 +7,8 @@
 ### transcribe(file, options) → TranscribeResult（B001/B002/B003）
 - 位置：`frontend/src/engine/transcribe.js`
 - 浏览器内解码媒体（16kHz 单声道），Silero VAD 前置（可关），阶梯式 WebGPU/WASM Worker 池转写，
-  zhconv 简体化 + ≤N 字分行（短尾合并）+ 复读块过滤
+  zhconv 简体化 + ≤N 字分行（短尾合并）+ 复读块过滤；转写中显示进度百分比与预计剩余时间（ETA，
+  按 elapsed/frac 估算，frac ≥ 25% 后启用）
 - 错误：`NO_AUDIO_TRACK`（无音轨/无人声）、`TRANSCRIBE_ABORTED`（取消且无部分结果）
 - 取消：`abort()` 保留已完成分段，结果带 `aborted: true`（B003）
 - dtype 铁律：WebGPU=fp16+q4 / WASM=q8（q8 在 WebGPU 上输出乱码）

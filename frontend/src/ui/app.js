@@ -64,7 +64,14 @@ $('run').addEventListener('click', async () => {
       maxCharsPerCue: parseInt($('maxChars').value, 10) || 10,
       onPoolReady: (p) => { activePool = p; },
       onProgress: ({ stage, frac, msg }) => {
-        if (msg) { setProgress(stage, frac || 0, msg); }
+        // B001-then3（ETA）：转写阶段按 elapsed/frac 估算剩余时间（frac 达 25% 后才可靠）
+        let eta = '';
+        if (stage === 'transcribe' && frac >= 0.25 && frac < 1) {
+          const remain = Math.max(0, ((performance.now() - t0) / 1000) / frac * (1 - frac));
+          eta = remain >= 60 ? `，预计剩余约 ${Math.round(remain / 60)} 分钟`
+                             : `，预计剩余约 ${Math.max(1, Math.round(remain))} 秒`;
+        }
+        if (msg) { setProgress(stage, frac || 0, msg + eta); }
         else if (stage === 'vad') setProgress('vad', 0.05 + frac * 0.1, `VAD 检测人声 ${(frac * 100) | 0}%`);
         else if (stage === 'done') setProgress('done', 1, '完成');
       },

@@ -66,7 +66,7 @@ docs/current/capabilities.md 逐条对照源码：4 接口位置/错误契约/dt
 
 | 缺口 | 级别 | 建议路由 |
 |------|------|----------|
-| B001-then3 进度缺「预计剩余时间」 | must（B001） | implementation_error：transcribe 池回调已含 frac/段数，UI 侧可由 elapsed+frac 估算 ETA，小改 |
+| ~~B001-then3 进度缺「预计剩余时间」~~ | must（B001） | **已修（2026-09-22）**：app.js onProgress 按 elapsed/frac 估算 ETA（frac≥25% 启用），拼入进度消息；vitest 20/20 + vite build 通过；docs/current 已同步。缺口关闭 |
 | B004-then5 modelId 未指向本地路径 + 桌面 E2E 未做 | must（B004） | 待桌面版 WebView2 实测后一并处理（可能与 Wails 宿主注入实现联动） |
 
 ## 判定
