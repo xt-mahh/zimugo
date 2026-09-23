@@ -24,6 +24,6 @@ export default defineConfig(({ mode }) => ({
     target: 'es2022',
   },
   // Pages 构建模式：base 指向子路径（站点布局：/ 落地页，/app/ 应用）
-  base: mode === 'pages' ? '/app/' : '/',
+  base: mode === 'pages' ? '/zimugo/app/' : '/',
   publicDir: 'public',
 }));
