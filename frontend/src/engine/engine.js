@@ -168,6 +168,12 @@ export class TranscribePool {
           if (this.aborted) break;
           this.onProgress({ stage: 'model', frac: 0.22, msg: `Worker ${k + 1}/${NW} 从缓存加载…` });
           const wk = this._newWorker(resolve, reject);
+          // 同 W0：必须等 worker-ready 握手再发 init，否则 TLA 窗口丢消息（W2/W3 变僵尸）
+          await new Promise((res) => {
+            const h = (e) => { if (e.data?.type === 'worker-ready') { wk.removeEventListener('message', h); clearTimeout(hb); res(); } };
+            wk.addEventListener('message', h);
+            const hb = setTimeout(res, 3000);
+          });
           wk.postMessage({ type: 'init', modelId, device: backend });
         }
       })();
