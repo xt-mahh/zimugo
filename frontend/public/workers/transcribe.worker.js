@@ -1,14 +1,24 @@
 // 转写 Worker（phase0 原样架构：静态文件，不经 vite 打包）
-// 直接从 node_modules dist 加载 —— 与 phase0 测试页完全一致的加载路径。
+// 直接从 public/node_modules dist 加载 —— 与 phase0 测试页完全一致的加载路径。
 // 教训：vite 预打包会产生第二个 ort 实例（ort.webgpu.bundle.min.mjs），
 // 与 transformers 内部实例的 wasmPaths 不共享 → webgpuInit 错误。
-import { pipeline, env } from '/node_modules/@huggingface/transformers/dist/transformers.min.js';
+//
+// ⚠️ 静态 import 不接受运行时字符串，而部署路径在 Pages 子路径（/zimugo/app/）下不固定
+// → 必须用动态 import() + 相对推导（2026-09-23 修复：静态绝对路径 '/node_modules/...'
+//    在 Pages 域名根下 404 → "Worker1: error"）
+const BASE = new URL('..', self.location.href).href; // public/workers/ → public/（子路径安全）
 
 // 模型源（Pages 双源架构，2026-09-22）：
 // - GitHub Pages：模型不进 Pages（onnx 超 git 100M 硬限），走 ModelScope 镜像（国内直连快，
-//   CORS 全开已实测），回落 HF 由 ensureModelCached 预取层负责（本 worker 只需设 remoteHost）
+//   CORS 全开已实测），回落 HF 由预取层负责（本 worker 只需设 remoteHost）
 // - 本地 dev / 桌面版：同源 /models/（桌面版零外网铁律 spec B004 不变）
+let pipeline, env;
 const IS_PAGES = self.location.hostname === 'xt-mahh.github.io';
+
+const tjs = await import(BASE + 'node_modules/@huggingface/transformers/dist/transformers.min.js');
+pipeline = tjs.pipeline;
+env = tjs.env;
+
 if (IS_PAGES) {
   env.allowLocalModels = false;
   env.allowRemoteModels = true;
@@ -18,12 +28,11 @@ if (IS_PAGES) {
 } else {
   env.allowRemoteModels = false;
   env.allowLocalModels = true;
-  env.localModelPath = '/models/';
+  env.localModelPath = new URL('models/', BASE).href;
 }
 // ort wasm 同源托管（桌面版零外网铁律）：transformers 默认 wasmPaths 指 CDN jsdelivr，
 // 离线/Wails 协议下 fetch 失败 → 被误归类 MODEL_DOWNLOAD_FAILED（2026-09-22 桌面实测）
 // ⚠️ transformers 3.x API：env 顶层无 wasm 键（首测 env.wasm=undefined 报 TypeError），在 backends.onnx.wasm 下
-const BASE = new URL('..', self.location.href).href; // public/workers/ → public/（base 兼容 Pages 子路径）
 env.backends.onnx.wasm.wasmPaths = BASE + 'ort/';
 
 let transcriber = null;
