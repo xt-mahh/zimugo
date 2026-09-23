@@ -148,7 +148,17 @@ export class TranscribePool {
           });
         });
         this.onProgress({ stage: 'model', frac: 0.2, msg: `Worker 1/${NW} 加载模型（${backend}）…` });
-        w0.postMessage({ type: 'init', modelId, device: backend });
+        // 握手：module worker 的 TLA（动态 import transformers）求值期间发出的 init 会丢失
+        // （2026-09-23 线上排障）。等 worker 主动报 worker-ready 再发 init；3s 兜底兼容旧版 worker。
+        const handshake = new Promise((res) => {
+          const h = (e) => { if (e.data?.type === 'worker-ready') { w0.removeEventListener('message', h); clearTimeout(hb); res(); } };
+          w0.addEventListener('message', h);
+          const hb = setTimeout(res, 3000);
+        });
+        handshake.then(() => {
+          this.onProgress({ stage: 'model', frac: 0.2, msg: `Worker 1/${NW} 加载模型（${backend}）…` });
+          w0.postMessage({ type: 'init', modelId, device: backend });
+        });
 
         await firstReady;
         this.onProgress({ stage: 'transcribe', frac: 0.22, msg: '开始转写…' });

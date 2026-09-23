@@ -40,6 +40,8 @@ if (IS_PAGES) {
 _log('wasmPaths 前, onnx keys=' + JSON.stringify(Object.keys(env.backends.onnx || {})));
 env.backends.onnx.wasm.wasmPaths = BASE + 'ort/';
 _log('wasmPaths 设置完成');
+// 握手：worker 求值完成（TLA 期间主线程早期发的 init 会丢失，见 2026-09-23 线上排障）
+self.postMessage({ type: 'worker-ready' });
 
 let transcriber = null;
 let loadedKey = '';
