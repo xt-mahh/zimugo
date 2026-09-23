@@ -57,9 +57,34 @@ self.onmessage = async (e) => {
         // q4 是 MatMulNBits int4 量化，WASM(CPU) EP 支持；fp16 在 CPU 上内部升 fp32。
         // 铁律保留：q8 严禁用于 WebGPU（phase0 实测乱码）——现在根本不带 q8 文件。
         _log('pipeline 开始: ' + modelId + ' / ' + (device || 'wasm'));
+        // 下载进度上报（2026-09-23 用户反馈：初次拉 390M 无进度提示体验差）
+        // transformers 3.x progress_callback 事件：{status: 'progress'|'done'|'ready', file, progress, loaded, total}
+        const fileProg = {}; // fileName → {loaded,total}
+        const report = () => {
+          const entries = Object.values(fileProg);
+          if (!entries.length) return;
+          const loaded = entries.reduce((a, f) => a + (f.loaded || 0), 0);
+          const total = entries.reduce((a, f) => a + (f.total || 0), 0);
+          if (total > 0) {
+            self.postMessage({ type: 'progress', stage: 'model', frac: 0.02 + 0.18 * (loaded / total),
+              msg: `下载模型 ${Math.round(loaded / 1048576)}/${Math.round(total / 1048576)} MB（${Math.round((loaded / total) * 100)}%）` });
+          }
+        };
+        let lastReport = 0;
         transcriber = await pipeline('automatic-speech-recognition', modelId, {
           dtype: { encoder_model: 'fp16', decoder_model_merged: 'q4' },
           device: device || 'wasm',
+          progress_callback: (data) => {
+            if (!data || !data.file) return;
+            if (data.status === 'progress') {
+              fileProg[data.file] = { loaded: data.loaded || 0, total: data.total || 0 };
+              const now = Date.now();
+              if (now - lastReport > 300) { lastReport = now; report(); } // 节流 300ms
+            } else if (data.status === 'done') {
+              fileProg[data.file] = { loaded: data.total || fileProg[data.file]?.total || 0, total: data.total || fileProg[data.file]?.total || 0 };
+              report();
+            }
+          },
         });
         loadedKey = key;
         _log('pipeline 完成');
