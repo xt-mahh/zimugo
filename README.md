@@ -41,6 +41,11 @@ ZimuGo 是一款**免费离线字幕工具**：把一段视频或音频拖进浏
 
 ## ✦ 快速开始
 
+### 🌐 在线版（零安装）
+
+**[→ 点此在线使用](https://xt-mahh.github.io/zimugo/app/)** —— 打开即用，
+首次转写会自动下载模型（约 390MB，来自 ModelScope，之后浏览器缓存秒开）。
+
 ### 🖥️ 桌面版（最简单）
 
 到 [Releases](https://github.com/xt-mahh/zimugo/releases) 下载 `ZimuGo.exe`（约 480MB，内嵌双精度模型），
