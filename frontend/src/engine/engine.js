@@ -73,6 +73,8 @@ export class TranscribePool {
         // 调试日志透传（Pages 在线版排障用，worker console 不冒泡到主线程）
         console.log(`[Worker${wi}]`, m.message);
       } else if (m.type === 'ready') {
+        // ready 即领 job（2026-09-23 修复：阶梯启动的 W1+ 只 init 不派活，成为永不 terminate
+        // 的僵尸 worker → _maybeDone 永假 → 卡「转写中 7/7」）
         this._dispatch(w, resolve);
       } else if (m.type === 'result') {
         this.results[m.jobId] = m.chunks;
