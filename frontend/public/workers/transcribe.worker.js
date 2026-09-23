@@ -83,6 +83,12 @@ self.onmessage = async (e) => {
             } else if (data.status === 'done') {
               fileProg[data.file] = { loaded: data.total || fileProg[data.file]?.total || 0, total: data.total || fileProg[data.file]?.total || 0 };
               report();
+              // 全部文件下载完 → session 创建阶段（webgpu shader 编译，首次 30-60s+，无法插桩）
+              if (Object.keys(fileProg).length >= 7) {
+                self.postMessage({ type: 'progress', stage: 'model', frac: 0.2,
+                  msg: '模型下载完成，正在初始化推理引擎（首次约 30–60 秒，请稍候）…' });
+                _log('全部文件下载完成，进入 session 创建');
+              }
             }
           },
         });
