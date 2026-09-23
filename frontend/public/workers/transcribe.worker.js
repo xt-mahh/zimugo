@@ -4,13 +4,27 @@
 // 与 transformers 内部实例的 wasmPaths 不共享 → webgpuInit 错误。
 import { pipeline, env } from '/node_modules/@huggingface/transformers/dist/transformers.min.js';
 
-env.allowRemoteModels = false;
-env.allowLocalModels = true;
-env.localModelPath = '/models/';
+// 模型源（Pages 双源架构，2026-09-22）：
+// - GitHub Pages：模型不进 Pages（onnx 超 git 100M 硬限），走 ModelScope 镜像（国内直连快，
+//   CORS 全开已实测），回落 HF 由 ensureModelCached 预取层负责（本 worker 只需设 remoteHost）
+// - 本地 dev / 桌面版：同源 /models/（桌面版零外网铁律 spec B004 不变）
+const IS_PAGES = self.location.hostname === 'xt-mahh.github.io';
+if (IS_PAGES) {
+  env.allowLocalModels = false;
+  env.allowRemoteModels = true;
+  env.remoteHost = 'https://modelscope.cn/models/';
+  // ModelScope 分支为 master（HF 为 main）；{model} = onnx-community/whisper-small
+  env.remotePathTemplate = '{model}/resolve/master/';
+} else {
+  env.allowRemoteModels = false;
+  env.allowLocalModels = true;
+  env.localModelPath = '/models/';
+}
 // ort wasm 同源托管（桌面版零外网铁律）：transformers 默认 wasmPaths 指 CDN jsdelivr，
 // 离线/Wails 协议下 fetch 失败 → 被误归类 MODEL_DOWNLOAD_FAILED（2026-09-22 桌面实测）
 // ⚠️ transformers 3.x API：env 顶层无 wasm 键（首测 env.wasm=undefined 报 TypeError），在 backends.onnx.wasm 下
-env.backends.onnx.wasm.wasmPaths = '/ort/';
+const BASE = new URL('..', self.location.href).href; // public/workers/ → public/（base 兼容 Pages 子路径）
+env.backends.onnx.wasm.wasmPaths = BASE + 'ort/';
 
 let transcriber = null;
 let loadedKey = '';

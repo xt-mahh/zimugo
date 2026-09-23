@@ -1,9 +1,9 @@
-name: Deploy landing page to GitHub Pages
+name: Build & deploy ZimuGo to GitHub Pages (landing + web app)
 
 on:
   push:
     branches: [main]
-    paths: ['website/**']
+    paths: ['frontend/**', 'website/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,9 +23,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Web 应用构建：ort wasm + transformers.js 是 gitignore 的运行时资产，CI 从 npm 取；
+      # models 不拷（超 git/Pages 限制）—— worker 在 Pages 域名下自动切 ModelScope 源
+      - name: Build web app
+        working-directory: frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save onnxruntime-web@1.23.0
+          mkdir -p public/ort public/node_modules/@huggingface/transformers/dist
+          cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm \
+             node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs \
+             node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm \
+             node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs \
+             public/ort/
+          cp node_modules/@huggingface/transformers/dist/transformers.min.js \
+             public/node_modules/@huggingface/transformers/dist/
+          npx vite build --mode pages
+
+      # 站点布局：/ = 落地页，/app/ = 应用（落地页「在线试用」按钮指向这里）
+      - name: Assemble site
+        run: |
+          mkdir -p site/app
+          cp -r website/* site/
+          cp -r frontend/dist/* site/app/
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: website
+          path: site
       - id: deployment
         uses: actions/deploy-pages@v4

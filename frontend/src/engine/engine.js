@@ -111,7 +111,7 @@ export class TranscribePool {
   _newWorker(resolve, reject) {
     // public/workers/ 静态文件：不经 vite 打包，与 phase0 加载方式完全一致
     // （vite 预打包会产生第二个 ort 实例导致 webgpuInit 错误）
-    const w = new Worker('/workers/transcribe.worker.js', { type: 'module' });
+    const w = new Worker(import.meta.env.BASE_URL + 'workers/transcribe.worker.js', { type: 'module' });
     const rec = { worker: w, terminated: false };
     const origTerm = w.terminate.bind(w);
     w.terminate = () => { rec.terminated = true; origTerm(); };

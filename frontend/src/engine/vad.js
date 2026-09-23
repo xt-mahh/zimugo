@@ -4,8 +4,9 @@ import * as ort from 'onnxruntime-web';
 
 // ort wasm 本地托管（CDN 不可达，同 worker）
 ort.env.wasm.wasmPaths = {
-  wasm: new URL('/ort/ort-wasm-simd-threaded.wasm', self.location.origin).href,
-  mjs: new URL('/ort/ort-wasm-simd-threaded.mjs', self.location.origin).href,
+  // 相对 origin → 相对 base（Pages 子路径兼容）：BASE_URL 由 vite 注入
+  wasm: new URL(import.meta.env.BASE_URL + 'ort/ort-wasm-simd-threaded.wasm', self.location.origin).href,
+  mjs: new URL(import.meta.env.BASE_URL + 'ort/ort-wasm-simd-threaded.mjs', self.location.origin).href,
 };
 
 const SR = 16000, WIN = 512;
@@ -13,7 +14,8 @@ const TH_ON = 0.5, TH_OFF = 0.35, PAD = 0.3, MIN_SEG = 0.5, MIN_GAP = 0.2;
 
 let session = null;
 
-export async function loadVad(modelPath = '/models/silero-vad/silero_vad.onnx') {
+const VAD_FALLBACK = import.meta.env.BASE_URL + 'models/silero-vad/silero_vad.onnx';
+export async function loadVad(modelPath = VAD_FALLBACK) {
   if (session) return session;
   session = await ort.InferenceSession.create(modelPath, {
     executionProviders: ['wasm'],
