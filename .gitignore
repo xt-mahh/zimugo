@@ -16,7 +16,6 @@ app/build/bin/
 *.exe
 
 # 误入库的调试二进制（历史遗留，见 8d1b1b6）
-app/zimugo
 
 # ort wasm 二进制（npm 包内容物，构建时由 build-desktop.sh / 构建流程拷入 public/ort）
 frontend/public/ort/
@@ -29,6 +28,7 @@ phase0/cert.pem
 phase0/key.pem
 *.pem
 
-RELEASE-STATUS.md
-
-OPERATIONS.md
+# 内部工作区（运营/状态/POC/证书/产物——永不入库）
+internal/
+app/localsub
+app/zimugo
