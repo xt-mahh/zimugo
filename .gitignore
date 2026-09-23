@@ -5,8 +5,10 @@ out_*.json
 # 依赖
 node_modules/
 
-# 模型资产（HF 下载；获取方式见 README「获取模型」）
-**/models/
+# 模型资产：whisper 大模型不进 git（超 100M 硬限，Pages 走 ModelScope）
+**/models/**
+!**/models/silero-vad/
+!frontend/public/models/silero-vad/silero_vad.onnx
 
 # 构建产物
 dist/
@@ -16,8 +18,10 @@ app/build/bin/
 *.exe
 
 # 误入库的调试二进制（历史遗留，见 8d1b1b6）
+app/localsub
+app/zimugo
 
-# ort wasm 二进制（npm 包内容物，构建时由 build-desktop.sh / 构建流程拷入 public/ort）
+# ort wasm 二进制（npm 包内容物，构建时由 build-desktop.sh / CI 拷入 public/ort）
 frontend/public/ort/
 frontend/public/workers/*.wasm
 frontend/public/workers/*.mjs
@@ -28,7 +32,7 @@ phase0/cert.pem
 phase0/key.pem
 *.pem
 
-# 内部工作区（运营/状态/POC/证书/产物——永不入库）
+# 内部工作区（运营/状态/POC/证书——永不入库）
 internal/
-app/localsub
-app/zimugo
+RELEASE-STATUS.md
+OPERATIONS.md
