@@ -15,10 +15,14 @@ const BASE = new URL('..', self.location.href).href; // public/workers/ → publ
 let pipeline, env;
 const IS_PAGES = self.location.hostname === 'xt-mahh.github.io';
 
+const _log = (m) => { try { console.log('[worker] ' + m); self.postMessage({ type: 'worker-log', message: String(m).slice(0, 200) }); } catch (e) {} };
+_log('TLA import 开始, BASE=' + BASE);
 const tjs = await import(BASE + 'node_modules/@huggingface/transformers/dist/transformers.min.js');
+_log('transformers 导入完成, version=' + (tjs.env && tjs.env.version));
 pipeline = tjs.pipeline;
 env = tjs.env;
 
+_log('IS_PAGES=' + IS_PAGES);
 if (IS_PAGES) {
   env.allowLocalModels = false;
   env.allowRemoteModels = true;
@@ -33,7 +37,9 @@ if (IS_PAGES) {
 // ort wasm 同源托管（桌面版零外网铁律）：transformers 默认 wasmPaths 指 CDN jsdelivr，
 // 离线/Wails 协议下 fetch 失败 → 被误归类 MODEL_DOWNLOAD_FAILED（2026-09-22 桌面实测）
 // ⚠️ transformers 3.x API：env 顶层无 wasm 键（首测 env.wasm=undefined 报 TypeError），在 backends.onnx.wasm 下
+_log('wasmPaths 前, onnx keys=' + JSON.stringify(Object.keys(env.backends.onnx || {})));
 env.backends.onnx.wasm.wasmPaths = BASE + 'ort/';
+_log('wasmPaths 设置完成');
 
 let transcriber = null;
 let loadedKey = '';
@@ -48,11 +54,13 @@ self.onmessage = async (e) => {
         // 旧策略 WASM=q8 / WebGPU=fp16+q4，导致两套模型都得随包（792M）。
         // q4 是 MatMulNBits int4 量化，WASM(CPU) EP 支持；fp16 在 CPU 上内部升 fp32。
         // 铁律保留：q8 严禁用于 WebGPU（phase0 实测乱码）——现在根本不带 q8 文件。
+        _log('pipeline 开始: ' + modelId + ' / ' + (device || 'wasm'));
         transcriber = await pipeline('automatic-speech-recognition', modelId, {
           dtype: { encoder_model: 'fp16', decoder_model_merged: 'q4' },
           device: device || 'wasm',
         });
         loadedKey = key;
+        _log('pipeline 完成');
       }
       self.postMessage({ type: 'ready' });
     } else if (type === 'job') {

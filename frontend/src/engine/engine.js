@@ -69,7 +69,10 @@ export class TranscribePool {
     w.onerror = (e) => reject(new Error(`Worker${wi}: ${e.message || 'error'}`));
     w.onmessage = (e) => {
       const m = e.data;
-      if (m.type === 'ready') {
+      if (m.type === 'worker-log') {
+        // 调试日志透传（Pages 在线版排障用，worker console 不冒泡到主线程）
+        console.log(`[Worker${wi}]`, m.message);
+      } else if (m.type === 'ready') {
         this._dispatch(w, resolve);
       } else if (m.type === 'result') {
         this.results[m.jobId] = m.chunks;
