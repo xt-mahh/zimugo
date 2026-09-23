@@ -30,3 +30,5 @@ phase0/key.pem
 *.pem
 
 RELEASE-STATUS.md
+
+OPERATIONS.md
