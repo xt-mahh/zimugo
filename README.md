@@ -9,6 +9,9 @@
 [![Engine](https://img.shields.io/badge/engine-Whisper%20%2B%20WebGPU-a855f7?style=flat-square)](https://github.com/xenova/transformers.js)
 [![Privacy](https://img.shields.io/badge/privacy-音频零出域-10b981?style=flat-square)](#-为什么做这个)
 
+<!-- SEO：封面图（后续可替换为真实 UI 截图，建议保持 1200x630 或 16:9 比例） -->
+<img src="website/og-cover.png" alt="ZimuGo — 本地 AI 字幕工具：音频永不上传，SRT 直导剪映" width="720">
+
 **简体中文** · [English](#english)
 
 </div>

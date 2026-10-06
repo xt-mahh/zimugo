@@ -4,8 +4,85 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<title>ZimuGo · 字幕，走你 — 本地 AI 字幕工具</title>
-<meta name="description" content="ZimuGo：浏览器里的本地 AI 字幕工具。Whisper + WebGPU，音频永不上传，断网也能用。">
+<title>本地 AI 字幕工具 - ZimuGo：音频永不上传，SRT 直导剪映</title>
+<meta name="description" content="ZimuGo 是免费开源的本地 AI 字幕工具：Whisper + WebGPU 浏览器/桌面端离线转写，音频永不上传，智能分行每条 ≤10 字，SRT 一键导出剪映、Premiere。中文短视频创作者的离线字幕方案，断网也能用。">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://xt-mahh.github.io/zimugo/">
+<link rel="sitemap" type="application/xml" href="sitemap.xml">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ZimuGo">
+<meta property="og:title" content="ZimuGo · 本地 AI 字幕工具 — 音频永不上传，SRT 直导剪映">
+<meta property="og:description" content="把视频拖进浏览器，几分钟后拿到能直接导入剪映的 SRT。Whisper + WebGPU 全程在你的设备上跑，免费开源，断网也能用。">
+<meta property="og:url" content="https://xt-mahh.github.io/zimugo/">
+<meta property="og:image" content="https://xt-mahh.github.io/zimugo/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="ZimuGo — 本地 AI 字幕工具：音频永不上传，SRT 直导剪映">
+<meta property="og:locale" content="zh_CN">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ZimuGo · 本地 AI 字幕工具 — 音频永不上传">
+<meta name="twitter:description" content="Whisper + WebGPU 离线转写，SRT 一键导出剪映。免费开源，断网照用。">
+<meta name="twitter:image" content="https://xt-mahh.github.io/zimugo/og-cover.png">
+<!-- 结构化数据：软件应用 + 常见问题 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "ZimuGo",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "Web, Windows",
+      "url": "https://xt-mahh.github.io/zimugo/",
+      "image": "https://xt-mahh.github.io/zimugo/og-cover.png",
+      "description": "本地 AI 字幕工具：Whisper + WebGPU 浏览器/桌面端离线转写，音频永不上传，SRT 直导剪映。",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" },
+      "featureList": [
+        "Whisper 本地中文语音转写",
+        "WebGPU 显卡加速，RTF 0.26-0.40",
+        "Silero VAD 静音与 BGM 过滤",
+        "词边界智能分行，每条不超过 10 字",
+        "SRT 一键导出，剪映/Premiere 直用",
+        "Windows 桌面版单文件，断网可用"
+      ],
+      "author": { "@type": "Person", "name": "xt-mahh", "url": "https://github.com/xt-mahh" },
+      "license": "https://opensource.org/licenses/MIT"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "ZimuGo 是免费的吗？",
+          "acceptedAnswer": { "@type": "Answer", "text": "是。ZimuGo 基于 MIT 协议完全免费开源，网页版和 Windows 桌面版都没有功能限制，也不按时长计费。" }
+        },
+        {
+          "@type": "Question",
+          "name": "用 ZimuGo 做字幕，音频会上传到服务器吗？",
+          "acceptedAnswer": { "@type": "Answer", "text": "不会。转写全程在你的设备浏览器或本地程序里完成，没有服务器、没有账号，断网也能用，欢迎打开开发者工具抓包验证。" }
+        },
+        {
+          "@type": "Question",
+          "name": "ZimuGo 中文转写准确率怎么样？",
+          "acceptedAnswer": { "@type": "Answer", "text": "基于 Whisper 模型，自动简体化并按词边界智能分行（默认每条不超过 10 字，可调），对标剪映主观准确率 90% 以上，导出前可在内置编辑器里逐条微调。" }
+        },
+        {
+          "@type": "Question",
+          "name": "没有显卡能用 ZimuGo 吗？",
+          "acceptedAnswer": { "@type": "Answer", "text": "能。支持 WebGPU 的浏览器走显卡加速（RTF 0.26-0.40，即 1 小时音频约 20 分钟出字幕）；不支持时自动回落 WASM 模式，速度慢一些但同样可用。" }
+        },
+        {
+          "@type": "Question",
+          "name": "ZimuGo 导出的字幕能直接导入剪映吗？",
+          "acceptedAnswer": { "@type": "Answer", "text": "能。导出 UTF-8 无 BOM 的标准 SRT 文件，剪映、Premiere 等主流剪辑软件均可直接导入。" }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <style>
   :root {
     --bg: #0a0e1a;
@@ -117,6 +194,16 @@
   .cta h2 { font-size: clamp(2rem, 5vw, 2.8rem); margin-bottom: 12px; }
   .cta p { color: var(--muted); margin-bottom: 36px; }
 
+  /* FAQ */
+  .faq { max-width: 780px; margin: 0 auto; }
+  .faq details { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px 24px; margin-bottom: 12px; }
+  .faq details[open] { border-color: rgba(99,102,241,.4); }
+  .faq summary { cursor: pointer; font-weight: 600; font-size: 1.02rem; list-style: none; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; float: right; color: var(--accent2); font-weight: 700; }
+  .faq details[open] summary::after { content: "−"; }
+  .faq details p { color: var(--muted); line-height: 1.8; margin-top: 12px; font-size: .95rem; }
+
   footer { border-top: 1px solid var(--border); padding: 34px 0; text-align: center; color: var(--muted); font-size: .88rem; }
   footer a { color: var(--accent3); text-decoration: none; }
 
@@ -132,7 +219,7 @@
 
 <main>
   <header>
-    <div class="logo">ZimuGo</div>
+    <h1 class="logo">ZimuGo</h1>
     <div class="slogan">字幕，<span class="go">走你</span>。</div>
     <p class="tagline">
       把视频拖进浏览器，几分钟后拿到能直接导入剪映的 SRT 字幕。<br>
@@ -203,6 +290,33 @@
     </div>
   </section>
 
+  <section class="reveal" id="faq">
+    <h2>常见问题<span class="dot">.</span></h2>
+    <p class="sub">关于本地字幕生成的几个高频问题。</p>
+    <div class="faq">
+      <details>
+        <summary>ZimuGo 是免费的吗？</summary>
+        <p>是。基于 MIT 协议完全免费开源，网页版与 Windows 桌面版均无功能限制，不按时长计费。</p>
+      </details>
+      <details>
+        <summary>音频会上传到服务器吗？</summary>
+        <p>不会。转写全程在你的设备浏览器或本地程序里完成，没有服务器、没有账号，断网也能用——欢迎打开开发者工具的网络面板抓包验证。</p>
+      </details>
+      <details>
+        <summary>中文转写准确率怎么样？</summary>
+        <p>基于 Whisper 模型自动简体化，并按词边界智能分行（默认每条不超过 10 字、可调）。对标剪映主观准确率 90% 以上，导出前可在内置编辑器逐条微调。</p>
+      </details>
+      <details>
+        <summary>没有显卡能用吗？</summary>
+        <p>能。支持 WebGPU 的浏览器走显卡加速（1 小时音频约 20 分钟出字幕）；不支持时自动回落 WASM 模式，速度慢一些但同样可用。Windows 桌面版自带模型，双击即用。</p>
+      </details>
+      <details>
+        <summary>导出的字幕能直接导入剪映吗？</summary>
+        <p>能。导出 UTF-8 无 BOM 的标准 SRT 字幕文件，剪映、Premiere 等主流剪辑软件均可直接导入。</p>
+      </details>
+    </div>
+  </section>
+
   <section class="cta reveal">
     <h2>准备好让字幕<span style="background:linear-gradient(120deg,var(--accent3),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent">走你</span>了吗？</h2>
     <p>桌面版双击即用 · Web 版 npm 即起 · 全部免费开源</p>
@@ -214,7 +328,7 @@
   </section>
 
   <footer>
-    ZimuGo · MIT License · 基于 <a href="https://github.com/xenova/transformers.js">Transformers.js</a> 与
+    ZimuGo · MIT License · <a href="#faq">常见问题</a> · 基于 <a href="https://github.com/xenova/transformers.js">Transformers.js</a> 与
     <a href="https://github.com/snakers4/silero-vad">Silero VAD</a> · Made with 💜 by <a href="https://github.com/xt-mahh">xt-mahh</a>
   </footer>
 </main>
